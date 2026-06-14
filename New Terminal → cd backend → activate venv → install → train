@@ -1,0 +1,8 @@
+New Terminal → cd backend → activate venv → install → train
+
+venv\Scripts\activate
+uvicorn main:app --reload
+
+npm start
+
+http://127.0.0.1:8000/stock/AAPL
