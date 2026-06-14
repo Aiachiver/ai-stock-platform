@@ -159,7 +159,6 @@ function Dashboard() {
     style={{
       display: "flex",
       justifyContent: "center",
-      gap: "20px",
       marginBottom: "20px"
     }}
   >
@@ -169,12 +168,12 @@ function Dashboard() {
         background: "#1e293b",
         padding: "20px",
         borderRadius: "10px",
-        width: "200px",
+        width: "220px",
         textAlign: "center"
       }}
     >
 
-      <h3>P/L</h3>
+      <h3>Profit / Loss</h3>
 
       <h2
         style={{
@@ -192,46 +191,6 @@ function Dashboard() {
   </div>
 
 )}
-
-      {/* P/L */}
-      {details && (
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            marginBottom: "20px"
-          }}
-        >
-
-          <div
-            style={{
-              background: "#1e293b",
-              padding: "20px",
-              borderRadius: "10px",
-              width: "220px",
-              textAlign: "center"
-            }}
-          >
-
-            <h3>Profit / Loss</h3>
-
-            <h2
-              style={{
-                color:
-                  details.profit >= 0
-                    ? "#22c55e"
-                    : "#ef4444"
-              }}
-            >
-              ${details.profit}
-            </h2>
-
-          </div>
-
-        </div>
-
-      )}
 
       {/* CHART */}
       <div
