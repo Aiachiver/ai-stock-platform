@@ -2,13 +2,18 @@ import React, { useState } from "react";
 import API from "../services/api";
 
 function Login({ setLoggedIn }) {
-
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const login = async () => {
+    if (!user.trim() || !pass.trim()) {
+      alert("Please enter username and password");
+      return;
+    }
 
     try {
+      setLoading(true);
 
       const res = await API.post("/login", {
         username: user,
@@ -16,55 +21,48 @@ function Login({ setLoggedIn }) {
       });
 
       if (res.data.status === "success") {
-
-        localStorage.setItem(
-          "token",
-          res.data.token
-        );
-
+        localStorage.setItem("token", res.data.token);
         setLoggedIn(true);
-
       } else {
-
-        alert("Wrong credentials");
-
+        alert("Wrong username or password");
       }
 
     } catch (err) {
-
-      console.log(err);
-
-      alert("Server error");
-
+      console.log("LOGIN ERROR:", err);
+      alert("Server error. Please try again.");
+    } finally {
+      setLoading(false);
     }
+  };
 
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !loading) {
+      login();
+    }
   };
 
   return (
-
     <div
       style={{
-        height: "100vh",
+        minHeight: "100vh",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background:
-          "linear-gradient(to right, #0f172a, #1e293b)"
+        background: "linear-gradient(to right, #0f172a, #1e293b)",
+        padding: "20px"
       }}
     >
-
       <div
         style={{
           background: "#111827",
           padding: "40px",
           borderRadius: "20px",
           width: "350px",
+          maxWidth: "100%",
           textAlign: "center",
-          boxShadow:
-            "0px 0px 30px rgba(0,0,0,0.5)"
+          boxShadow: "0px 0px 30px rgba(0,0,0,0.5)"
         }}
       >
-
         <h1
           style={{
             color: "white",
@@ -83,10 +81,16 @@ function Login({ setLoggedIn }) {
           Smart Stock Prediction Dashboard
         </p>
 
+        {/* USERNAME */}
         <input
+          type="text"
           placeholder="Username"
+          value={user}
           onChange={(e) => setUser(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={loading}
           style={{
+            boxSizing: "border-box",
             width: "100%",
             padding: "12px",
             marginBottom: "15px",
@@ -99,11 +103,16 @@ function Login({ setLoggedIn }) {
           }}
         />
 
+        {/* PASSWORD */}
         <input
           type="password"
           placeholder="Password"
+          value={pass}
           onChange={(e) => setPass(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={loading}
           style={{
+            boxSizing: "border-box",
             width: "100%",
             padding: "12px",
             marginBottom: "20px",
@@ -116,23 +125,26 @@ function Login({ setLoggedIn }) {
           }}
         />
 
+        {/* LOGIN BUTTON */}
         <button
           onClick={login}
+          disabled={loading}
           style={{
             width: "100%",
             padding: "12px",
             borderRadius: "10px",
             border: "none",
-            background: "#22c55e",
+            background: loading ? "#166534" : "#22c55e",
             color: "white",
             fontSize: "18px",
-            cursor: "pointer",
+            cursor: loading ? "not-allowed" : "pointer",
             fontWeight: "bold"
           }}
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
 
+        {/* DEMO LOGIN */}
         <p
           style={{
             color: "#6b7280",
@@ -142,13 +154,9 @@ function Login({ setLoggedIn }) {
         >
           Demo Login → admin / 1234
         </p>
-
       </div>
-
     </div>
-
   );
-
 }
 
 export default Login;

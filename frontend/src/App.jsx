@@ -3,7 +3,9 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 
 function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(
+    !!localStorage.getItem("token")
+  );
 
   return (
     <>

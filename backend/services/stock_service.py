@@ -1,37 +1,45 @@
 import yfinance as yf
 
+
 def get_stock_data(symbol):
 
-    df = yf.download(
-        symbol,
-        period="5d",
-        interval="1h",
-        auto_adjust=False
-    )
+    try:
 
-    df = df.reset_index()
+        df = yf.download(
+            symbol,
+            period="5d",
+            interval="1h",
+            auto_adjust=False,
+            progress=False
+        )
 
-    ohlc = []
+        if df.empty:
+            print(f"NO STOCK DATA: {symbol}")
+            return []
 
-    for i in range(len(df)):
+        df = df.reset_index()
 
-        open_price = df["Open"].iloc[i].item()
-        high_price = df["High"].iloc[i].item()
-        low_price = df["Low"].iloc[i].item()
-        close_price = df["Close"].iloc[i].item()
+        ohlc = []
 
-        ohlc.append({
+        for i in range(len(df)):
 
-            "time": str(df["Datetime"].iloc[i])[11:16],
+            open_price = df["Open"].iloc[i].item()
+            high_price = df["High"].iloc[i].item()
+            low_price = df["Low"].iloc[i].item()
+            close_price = df["Close"].iloc[i].item()
 
-            "open": round(float(open_price), 2),
+            ohlc.append({
+                "time": str(df["Datetime"].iloc[i])[11:16],
+                "open": round(float(open_price), 2),
+                "high": round(float(high_price), 2),
+                "low": round(float(low_price), 2),
+                "close": round(float(close_price), 2)
+            })
 
-            "high": round(float(high_price), 2),
+        return ohlc
 
-            "low": round(float(low_price), 2),
+    except Exception as e:
 
-            "close": round(float(close_price), 2)
+        print("STOCK DATA ERROR:", e)
 
-        })
-
-    return ohlc
+        return []

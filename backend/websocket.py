@@ -1,33 +1,41 @@
 import asyncio
 import yfinance as yf
+from fastapi import WebSocket, WebSocketDisconnect
 
-async def price_stream(websocket, symbol):
+
+async def price_stream(websocket: WebSocket, symbol: str):
 
     await websocket.accept()
 
-    while True:
-
-        try:
+    try:
+        while True:
 
             df = yf.download(
                 symbol,
                 period="1d",
                 interval="1m",
-                auto_adjust=False
+                auto_adjust=False,
+                progress=False
             )
 
-            latest = float(
-                df["Close"].dropna().iloc[-1].item()
-            )
+            if not df.empty:
 
-            await websocket.send_json({
-                "price": round(latest, 2)
-            })
+                latest = float(
+                    df["Close"].dropna().iloc[-1].item()
+                )
 
-            await asyncio.sleep(5)
+                await websocket.send_json({
+                    "price": round(latest, 2)
+                })
 
-        except Exception as e:
+            else:
+                print(f"NO LIVE PRICE: {symbol}")
 
-            print("WS ERROR:", e)
+            # Yahoo ko unnecessarily baar-baar hit nahi karenge
+            await asyncio.sleep(15)
 
-            await asyncio.sleep(5)
+    except WebSocketDisconnect:
+        print(f"WebSocket disconnected: {symbol}")
+
+    except Exception as e:
+        print("WS ERROR:", e)
