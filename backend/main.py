@@ -5,34 +5,16 @@ from pydantic import BaseModel
 
 from database import engine, Base, SessionLocal
 import models
-
 from services.stock_service import get_stock_data
 from services.prediction_service import get_prediction
 from services.trade_service import get_price
-
 from websocket import price_stream
 from auth import create_token, verify_token
 
-# ================= DB INIT =================
 Base.metadata.create_all(bind=engine)
+app = FastAPI(title="AI Stock Trading API", version="1.0.0")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
-app = FastAPI()
-
-# ================= CORS =================
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ================= ROOT =================
-@app.get("/")
-def home():
-    return {"msg": "Backend is running 🚀"}
-
-# ================= DB SESSION =================
 def get_db():
     db = SessionLocal()
     try:
@@ -40,425 +22,229 @@ def get_db():
     finally:
         db.close()
 
-# ================= STOCK =================
-@app.get("/stock/{symbol}")
-def stock(symbol: str):
+def get_current_user(username: str, db: Session):
+    return db.query(models.User).filter(models.User.username == username).first()
 
-    try:
+def normalize_symbol(symbol: str):
+    return symbol.strip().upper()
 
-        data = get_stock_data(symbol)
-
-        return {
-            "ohlc": data
-        }
-
-    except Exception as e:
-
-        return {
-            "error": str(e)
-        }
-
-# ================= PREDICTION =================
-@app.get("/predict/{symbol}")
-def predict(symbol: str):
-    return get_prediction(symbol)
-
-# ================= BUY =================
-@app.post("/buy/{symbol}")
-def buy(
-    symbol: str,
-    quantity: int = 1,
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_token)
-):
-    if quantity <= 0:
-        return {"error": "Quantity must be greater than 0"}
-
-    price = get_price(symbol)
-
-    if price is None:
-        return {"error": "Unable to get current price"}
-
-    # Current balance calculate karo
-    trades = db.query(models.Trade).all()
-    balance = 10000
-
-    for t in trades:
-        trade_quantity = t.quantity or 1
-
-        if t.type == "BUY":
-            balance -= t.price * trade_quantity
-
-        elif t.type == "SELL":
-            balance += t.price * trade_quantity
-
-    # Order ki total cost
-    order_value = price * quantity
-
-    # Balance check
-    if order_value > balance:
-        return {
-            "error": "Insufficient balance",
-            "required": round(order_value, 2),
-            "available": round(balance, 2)
-        }
-
-    trade = models.Trade(
-        symbol=symbol,
-        price=price,
-        type="BUY",
-        quantity=quantity
-    )
-
-    db.add(trade)
-    db.commit()
-
-    return {
-        "msg": "bought",
-        "symbol": symbol,
-        "quantity": quantity,
-        "price": price,
-        "total": round(order_value, 2)
-    }
-
-# ================= SELL =================
-@app.post("/sell/{symbol}")
-def sell(
-    symbol: str,
-    quantity: int = 1,
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_token)
-):
-    if quantity <= 0:
-        return {"error": "Quantity must be greater than 0"}
-
-    # Current holdings calculate karo
-    trades = db.query(models.Trade).filter(
-        models.Trade.symbol == symbol
-    ).all()
-
-    holdings = 0
-
-    for t in trades:
-        trade_quantity = t.quantity or 1
-
-        if t.type == "BUY":
-            holdings += trade_quantity
-        elif t.type == "SELL":
-            holdings -= trade_quantity
-
-    # Check: jitne shares hain usse zyada sell na ho
-    if quantity > holdings:
-        return {
-            "error": f"Not enough holdings. You have {holdings} {symbol} shares."
-        }
-
-    price = get_price(symbol)
-
-    if price is None:
-        return {"error": "Unable to get current price"}
-
-    trade = models.Trade(
-        symbol=symbol,
-        price=price,
-        type="SELL",
-        quantity=quantity
-    )
-
-    db.add(trade)
-    db.commit()
-
-    return {
-        "msg": "sold",
-        "symbol": symbol,
-        "quantity": quantity,
-        "price": price
-    }
-
-# ================= HISTORY =================
-@app.get("/history")
-def history(
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_token)
-):
-    return db.query(models.Trade).all()
-
-# ================= PORTFOLIO =================
-@app.get("/portfolio")
-def portfolio(
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_token)
-):
-    trades = db.query(models.Trade).all()
-
-    balance = 10000
-    holdings = 0
-
-    for t in trades:
-        quantity = t.quantity or 1
-
-        if t.type == "BUY":
-            balance -= t.price * quantity
-            holdings += quantity
-
-        elif t.type == "SELL":
-            balance += t.price * quantity
-            holdings -= quantity
-
-    return {
-        "balance": round(balance, 2),
-        "holdings": holdings
-    }
-
-# ================= PORTFOLIO DETAILS =================
-@app.get("/portfolio/details")
-def portfolio_details(db: Session = Depends(get_db)):
-    trades = db.query(models.Trade).order_by(models.Trade.id).all()
-
-    balance = 10000
+def calculate_user_positions(trades):
     positions = {}
-    realized_profit = 0
-
-    for t in trades:
-        quantity = t.quantity or 1
-
-        if t.symbol not in positions:
-            positions[t.symbol] = {
-                "quantity": 0,
-                "total_cost": 0
-            }
-
-        position = positions[t.symbol]
-
-        if t.type == "BUY":
-            balance -= t.price * quantity
-
+    realized_profit = 0.0
+    for trade in trades:
+        quantity = trade.quantity or 1
+        symbol = normalize_symbol(trade.symbol)
+        position = positions.setdefault(symbol, {"quantity": 0, "total_cost": 0.0})
+        if trade.type == "BUY":
             position["quantity"] += quantity
-            position["total_cost"] += t.price * quantity
-
-        elif t.type == "SELL":
-
-            # Sell se pehle available holdings check
+            position["total_cost"] += trade.price * quantity
+        elif trade.type == "SELL" and position["quantity"] > 0:
             sell_quantity = min(quantity, position["quantity"])
+            average_price = position["total_cost"] / position["quantity"]
+            realized_profit += (trade.price - average_price) * sell_quantity
+            position["quantity"] -= sell_quantity
+            position["total_cost"] -= average_price * sell_quantity
+    return positions, realized_profit
 
-            if sell_quantity > 0:
-                average_price = (
-                    position["total_cost"] / position["quantity"]
-                )
-
-                realized_profit += (
-                    t.price - average_price
-                ) * sell_quantity
-
-                balance += t.price * sell_quantity
-
-                position["quantity"] -= sell_quantity
-                position["total_cost"] -= (
-                    average_price * sell_quantity
-                )
-
-    invested = 0
-    current_value = 0
-    unrealized_profit = 0
+def get_portfolio_snapshot(trades):
+    positions, realized_profit = calculate_user_positions(trades)
+    invested = current_value = unrealized_profit = 0.0
     total_holdings = 0
-
     for symbol, position in positions.items():
-
         quantity = position["quantity"]
-
         if quantity <= 0:
             continue
-
-        total_cost = position["total_cost"]
-
-        average_price = total_cost / quantity
-
         current_price = get_price(symbol)
-
         if current_price is None:
             continue
-
+        total_cost = position["total_cost"]
         market_value = current_price * quantity
-
         invested += total_cost
         current_value += market_value
         total_holdings += quantity
+        unrealized_profit += market_value - total_cost
+    return {"positions": positions,"realized_profit": realized_profit,"invested": invested,"current_value": current_value,"unrealized_profit": unrealized_profit,"total_profit": realized_profit + unrealized_profit,"holdings": total_holdings}
 
-        unrealized_profit += (
-            market_value - total_cost
-        )
+@app.get("/")
+def home():
+    return {"msg": "Backend is running 🚀"}
 
-    total_profit = realized_profit + unrealized_profit
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "ai-stock-trading-api"}
 
-    return {
-        "balance": round(balance, 2),
-        "holdings": total_holdings,
-        "invested": round(invested, 2),
-        "current": round(current_value, 2),
-        "average_price": round(
-            invested / total_holdings, 2
-        ) if total_holdings > 0 else 0,
-        "realized_profit": round(realized_profit, 2),
-        "unrealized_profit": round(unrealized_profit, 2),
-        "profit": round(total_profit, 2)
-      }
-# ================= PORTFOLIO POSITIONS =================
+@app.get("/stock/{symbol}")
+def stock(symbol: str):
+    try:
+        return {"ohlc": get_stock_data(normalize_symbol(symbol))}
+    except Exception as e:
+        return {"error": str(e), "ohlc": []}
+
+@app.get("/predict/{symbol}")
+def predict(symbol: str):
+    try:
+        return get_prediction(normalize_symbol(symbol))
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/buy/{symbol}")
+def buy(symbol: str, quantity: int = 1, db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    symbol = normalize_symbol(symbol)
+    if quantity <= 0:
+        return {"error": "Quantity must be greater than 0"}
+    user = get_current_user(username, db)
+    if not user:
+        return {"error": "User not found"}
+    price = get_price(symbol)
+    if price is None:
+        return {"error": "Unable to get current price"}
+    order_value = price * quantity
+    if order_value > user.balance:
+        return {"error": "Insufficient balance", "required": round(order_value, 2), "available": round(user.balance, 2)}
+    try:
+        user.balance -= order_value
+        db.add(models.Trade(symbol=symbol, price=price, type="BUY", quantity=quantity, user_id=user.id))
+        db.commit()
+        return {"msg": "bought", "symbol": symbol, "quantity": quantity, "price": price, "total": round(order_value, 2), "balance": round(user.balance, 2)}
+    except Exception as e:
+        db.rollback()
+        return {"error": f"Buy failed: {str(e)}"}
+
+@app.post("/sell/{symbol}")
+def sell(symbol: str, quantity: int = 1, db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    symbol = normalize_symbol(symbol)
+    if quantity <= 0:
+        return {"error": "Quantity must be greater than 0"}
+    user = get_current_user(username, db)
+    if not user:
+        return {"error": "User not found"}
+    trades = db.query(models.Trade).filter(models.Trade.user_id == user.id, models.Trade.symbol == symbol).order_by(models.Trade.id).all()
+    holdings = 0
+    for trade in trades:
+        trade_quantity = trade.quantity or 1
+        holdings += trade_quantity if trade.type == "BUY" else -trade_quantity if trade.type == "SELL" else 0
+    if quantity > holdings:
+        return {"error": f"Not enough holdings. You have {holdings} {symbol} shares."}
+    price = get_price(symbol)
+    if price is None:
+        return {"error": "Unable to get current price"}
+    total = price * quantity
+    try:
+        user.balance += total
+        db.add(models.Trade(symbol=symbol, price=price, type="SELL", quantity=quantity, user_id=user.id))
+        db.commit()
+        return {"msg": "sold", "symbol": symbol, "quantity": quantity, "price": price, "total": round(total, 2), "balance": round(user.balance, 2)}
+    except Exception as e:
+        db.rollback()
+        return {"error": f"Sell failed: {str(e)}"}
+
+@app.get("/history")
+def history(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    user = get_current_user(username, db)
+    if not user:
+        return {"error": "User not found"}
+    return db.query(models.Trade).filter(models.Trade.user_id == user.id).order_by(models.Trade.id).all()
+
+@app.get("/portfolio")
+def portfolio(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    user = get_current_user(username, db)
+    if not user:
+        return {"error": "User not found"}
+    trades = db.query(models.Trade).filter(models.Trade.user_id == user.id).order_by(models.Trade.id).all()
+    snapshot = get_portfolio_snapshot(trades)
+    return {"balance": round(user.balance, 2), "holdings": snapshot["holdings"], "invested": round(snapshot["invested"], 2), "current": round(snapshot["current_value"], 2), "profit": round(snapshot["total_profit"], 2)}
+
+@app.get("/portfolio/details")
+def portfolio_details(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    user = get_current_user(username, db)
+    if not user:
+        return {"error": "User not found"}
+    trades = db.query(models.Trade).filter(models.Trade.user_id == user.id).order_by(models.Trade.id).all()
+    snapshot = get_portfolio_snapshot(trades)
+    holdings = snapshot["holdings"]
+    invested = snapshot["invested"]
+    return {"balance": round(user.balance, 2), "holdings": holdings, "invested": round(invested, 2), "current": round(snapshot["current_value"], 2), "average_price": round(invested / holdings, 2) if holdings > 0 else 0, "realized_profit": round(snapshot["realized_profit"], 2), "unrealized_profit": round(snapshot["unrealized_profit"], 2), "profit": round(snapshot["total_profit"], 2)}
+
 @app.get("/portfolio/positions")
-def portfolio_positions(
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_token)
-):
-    trades = db.query(models.Trade).order_by(models.Trade.id).all()
-
-    positions = {}
-
-    for t in trades:
-        quantity = t.quantity or 1
-
-        if t.symbol not in positions:
-            positions[t.symbol] = {
-                "quantity": 0,
-                "total_cost": 0
-            }
-
-        position = positions[t.symbol]
-
-        if t.type == "BUY":
-            position["quantity"] += quantity
-            position["total_cost"] += t.price * quantity
-
-        elif t.type == "SELL":
-            sell_quantity = min(quantity, position["quantity"])
-
-            if sell_quantity > 0:
-                average_price = (
-                    position["total_cost"] / position["quantity"]
-                )
-
-                position["quantity"] -= sell_quantity
-                position["total_cost"] -= (
-                    average_price * sell_quantity
-                )
-
+def portfolio_positions(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    user = get_current_user(username, db)
+    if not user:
+        return {"error": "User not found"}
+    trades = db.query(models.Trade).filter(models.Trade.user_id == user.id).order_by(models.Trade.id).all()
+    positions, _ = calculate_user_positions(trades)
     result = []
-
     for symbol, position in positions.items():
-
         quantity = position["quantity"]
-
         if quantity <= 0:
             continue
-
-        average_price = position["total_cost"] / quantity
         current_price = get_price(symbol)
-
         if current_price is None:
             continue
-
+        average_price = position["total_cost"] / quantity
         current_value = current_price * quantity
         profit = current_value - position["total_cost"]
-
-        result.append({
-            "symbol": symbol,
-            "quantity": quantity,
-            "average_price": round(average_price, 2),
-            "current_price": round(current_price, 2),
-            "current_value": round(current_value, 2),
-            "profit": round(profit, 2)
-        })
-
+        result.append({"symbol": symbol,"quantity": quantity,"average_price": round(average_price, 2),"current_price": round(current_price, 2),"current_value": round(current_value, 2),"invested": round(position["total_cost"], 2),"profit": round(profit, 2),"profit_percent": round((profit / position["total_cost"]) * 100, 2) if position["total_cost"] > 0 else 0})
     return result
-#========================== PORTFOLIO CHART =================
+
 @app.get("/portfolio/chart")
-def portfolio_chart(
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_token)
-):
-    trades = db.query(models.Trade).order_by(models.Trade.id).all()
-
-    positions = {}
-
-    for t in trades:
-        quantity = t.quantity or 1
-
-        if t.symbol not in positions:
-            positions[t.symbol] = {
-                "quantity": 0,
-                "invested": 0
-            }
-
-        if t.type == "BUY":
-            positions[t.symbol]["quantity"] += quantity
-            positions[t.symbol]["invested"] += t.price * quantity
-
-        elif t.type == "SELL":
-            current_qty = positions[t.symbol]["quantity"]
-
-            if current_qty > 0:
-                sell_qty = min(quantity, current_qty)
-                avg_price = (
-                    positions[t.symbol]["invested"] / current_qty
-                )
-
-                positions[t.symbol]["quantity"] -= sell_qty
-                positions[t.symbol]["invested"] -= (
-                    avg_price * sell_qty
-                )
-
+def portfolio_chart(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    user = get_current_user(username, db)
+    if not user:
+        return {"error": "User not found"}
+    trades = db.query(models.Trade).filter(models.Trade.user_id == user.id).order_by(models.Trade.id).all()
+    positions, _ = calculate_user_positions(trades)
     result = []
-
     for symbol, position in positions.items():
-
-        if position["quantity"] <= 0:
+        quantity = position["quantity"]
+        if quantity <= 0:
             continue
-
         current_price = get_price(symbol)
-
         if current_price is None:
             continue
-
-        current_value = current_price * position["quantity"]
-
-        result.append({
-            "symbol": symbol,
-            "invested": round(position["invested"], 2),
-            "current_value": round(current_value, 2),
-            "profit": round(
-                current_value - position["invested"], 2
-            )
-        })
-
+        current_value = current_price * quantity
+        invested = position["total_cost"]
+        result.append({"symbol": symbol,"invested": round(invested, 2),"current_value": round(current_value, 2),"profit": round(current_value - invested, 2)})
     return result
-# ================= WEBSOCKET =================
+
 @app.websocket("/ws/{symbol}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
+    await price_stream(websocket, normalize_symbol(symbol))
 
-    await price_stream(websocket, symbol)
-
-# ================= LOGIN =================
 class LoginData(BaseModel):
     username: str
     password: str
 
-users = {
-    "admin": "1234"
-}
-
 @app.post("/login")
-def login(data: LoginData):
+def login(data: LoginData, db: Session = Depends(get_db)):
+    username = data.username.strip()
+    if not username or not data.password:
+        return {"status": "fail"}
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user or user.password != data.password:
+        return {"status": "fail"}
+    return {"status": "success", "token": create_token(user.username)}
 
-    if (
-        data.username in users
-        and users[data.username] == data.password
-    ):
+@app.get("/me")
+def current_user(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    user = get_current_user(username, db)
+    if not user:
+        return {"error": "User not found"}
+    return {"id": user.id, "username": user.username, "balance": round(user.balance, 2)}
 
-        token = create_token(data.username)
-
-        return {
-            "status": "success",
-            "token": token
-        }
-
-    return {
-        "status": "fail"
-    }
+@app.post("/register")
+def register(data: LoginData, db: Session = Depends(get_db)):
+    username = data.username.strip()
+    if len(username) < 3 or not data.password:
+        return {"status": "fail", "message": "Username must be at least 3 characters and password is required"}
+    existing_user = db.query(models.User).filter(models.User.username == username).first()
+    if existing_user:
+        return {"status": "fail", "message": "Username already exists"}
+    new_user = models.User(username=username, password=data.password, balance=10000.0)
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return {"status": "success", "message": "Registration successful", "user_id": new_user.id}
+    except Exception as e:
+        db.rollback()
+        return {"status": "fail", "message": f"Registration failed: {str(e)}"}

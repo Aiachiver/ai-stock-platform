@@ -5,8 +5,9 @@ function Login({ setLoggedIn }) {
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
+  const [registerMode, setRegisterMode] = useState(false);
 
-  const login = async () => {
+  const submit = async () => {
     if (!user.trim() || !pass.trim()) {
       alert("Please enter username and password");
       return;
@@ -15,20 +16,36 @@ function Login({ setLoggedIn }) {
     try {
       setLoading(true);
 
-      const res = await API.post("/login", {
-        username: user,
-        password: pass
-      });
+      if (registerMode) {
+        const res = await API.post("/register", {
+          username: user,
+          password: pass
+        });
 
-      if (res.data.status === "success") {
-        localStorage.setItem("token", res.data.token);
-        setLoggedIn(true);
+        if (res.data.status === "success") {
+          alert("Registration successful! Now login.");
+          setRegisterMode(false);
+          setPass("");
+        } else {
+          alert(res.data.message || "Registration failed");
+        }
+
       } else {
-        alert("Wrong username or password");
+        const res = await API.post("/login", {
+          username: user,
+          password: pass
+        });
+
+        if (res.data.status === "success") {
+          localStorage.setItem("token", res.data.token);
+          setLoggedIn(true);
+        } else {
+          alert("Wrong username or password");
+        }
       }
 
     } catch (err) {
-      console.log("LOGIN ERROR:", err);
+      console.log("AUTH ERROR:", err);
       alert("Server error. Please try again.");
     } finally {
       setLoading(false);
@@ -37,7 +54,7 @@ function Login({ setLoggedIn }) {
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !loading) {
-      login();
+      submit();
     }
   };
 
@@ -63,25 +80,16 @@ function Login({ setLoggedIn }) {
           boxShadow: "0px 0px 30px rgba(0,0,0,0.5)"
         }}
       >
-        <h1
-          style={{
-            color: "white",
-            marginBottom: "10px"
-          }}
-        >
+        <h1 style={{ color: "white", marginBottom: "10px" }}>
           📈 AI Trading Platform
         </h1>
 
-        <p
-          style={{
-            color: "#9ca3af",
-            marginBottom: "30px"
-          }}
-        >
-          Smart Stock Prediction Dashboard
+        <p style={{ color: "#9ca3af", marginBottom: "30px" }}>
+          {registerMode
+            ? "Create your trading account"
+            : "Smart Stock Prediction Dashboard"}
         </p>
 
-        {/* USERNAME */}
         <input
           type="text"
           placeholder="Username"
@@ -103,7 +111,6 @@ function Login({ setLoggedIn }) {
           }}
         />
 
-        {/* PASSWORD */}
         <input
           type="password"
           placeholder="Password"
@@ -125,9 +132,8 @@ function Login({ setLoggedIn }) {
           }}
         />
 
-        {/* LOGIN BUTTON */}
         <button
-          onClick={login}
+          onClick={submit}
           disabled={loading}
           style={{
             width: "100%",
@@ -141,19 +147,44 @@ function Login({ setLoggedIn }) {
             fontWeight: "bold"
           }}
         >
-          {loading ? "Logging in..." : "Login"}
+          {loading
+            ? "Please wait..."
+            : registerMode
+            ? "Register"
+            : "Login"}
         </button>
 
-        {/* DEMO LOGIN */}
-        <p
+        <button
+          onClick={() => {
+            setRegisterMode(!registerMode);
+            setPass("");
+          }}
+          disabled={loading}
           style={{
-            color: "#6b7280",
-            marginTop: "20px",
+            marginTop: "15px",
+            background: "transparent",
+            border: "none",
+            color: "#60a5fa",
+            cursor: "pointer",
             fontSize: "14px"
           }}
         >
-          Demo Login → admin / 1234
-        </p>
+          {registerMode
+            ? "Already have an account? Login"
+            : "Create a new account"}
+        </button>
+
+        {!registerMode && (
+          <p
+            style={{
+              color: "#6b7280",
+              marginTop: "20px",
+              fontSize: "14px"
+            }}
+          >
+            Demo Login → admin / 1234
+          </p>
+        )}
       </div>
     </div>
   );

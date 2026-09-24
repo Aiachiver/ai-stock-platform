@@ -1,19 +1,10 @@
-from jose import jwt
-from datetime import datetime, timedelta
-
-SECRET_KEY = "mysecretkey"
-
-def create_token(username):
-
-    payload = {
-        "sub": username,
-        "exp": datetime.utcnow() + timedelta(hours=5)
-    }
-
-    token = jwt.encode(
-        payload,
-        SECRET_KEY,
-        algorithm="HS256"
-    )
-
-    return token
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-jose[cryptography]
+python-dotenv
+pydantic
+yfinance
+pandas
+numpy
