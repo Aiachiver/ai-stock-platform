@@ -170,8 +170,8 @@ function Dashboard() {
     try {
 
       const wsBaseUrl = API_BASE_URL
-        .replace(/^https:///, "wss://")
-        .replace(/^http:///, "ws://");
+        .replace(/^https:\/\//, "wss://")
+        .replace(/^http:\/\//, "ws://");
 
       ws = new WebSocket(
         `${wsBaseUrl}/ws/${symbol}`
