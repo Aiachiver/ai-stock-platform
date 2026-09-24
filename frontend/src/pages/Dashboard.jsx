@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import API from "../services/api";
+import API, { API_BASE_URL } from "../services/api";
 
 import StockChart from "../components/StockChart";
 import TradePanel from "../components/TradePanel";
@@ -169,8 +169,12 @@ function Dashboard() {
 
     try {
 
+      const wsBaseUrl = API_BASE_URL
+        .replace(/^https:///, "wss://")
+        .replace(/^http:///, "ws://");
+
       ws = new WebSocket(
-        `ws://127.0.0.1:8000/ws/${symbol}`
+        `${wsBaseUrl}/ws/${symbol}`
       );
 
 
