@@ -152,6 +152,7 @@ function Dashboard() {
   // LOAD DATA WHEN STOCK CHANGES
   // =====================================================
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
 
     loadDashboard();
