@@ -29,13 +29,12 @@ def _history(symbol, period="3y"):
     return frame.dropna(subset=["Open", "High", "Low", "Close"])
 
 
-def _dataset(frame):
-    """Build causal OHLCV features; target is the following session's return."""
+def _features(frame):
+    """Causal OHLCV features available at the close of each trading session."""
     data = frame.copy()
     close = data["Close"].astype(float)
     volume = data["Volume"].astype(float).replace(0, np.nan)
     returns = close.pct_change()
-
     features = pd.DataFrame(index=data.index)
     for lag in (1, 2, 3, 5, 10, 20):
         features[f"return_{lag}d"] = close.pct_change(lag)
@@ -59,13 +58,15 @@ def _dataset(frame):
     features["volume_change"] = volume.pct_change()
     features["volume_ratio_20"] = volume / volume.rolling(20).mean()
     features["volume_return_corr_20"] = returns.rolling(20).corr(volume.pct_change())
+    return features.replace([np.inf, -np.inf], np.nan)
 
-    # Predict the next session's percentage return, not its absolute price.
-    target = close.shift(-1) / close - 1
-    dataset = features.replace([np.inf, -np.inf], np.nan).copy()
-    dataset["target"] = target
-    dataset = dataset.dropna()
-    return dataset.drop(columns=["target"]), dataset["target"]
+
+def _dataset(frame):
+    # Each row at t predicts the return from close(t) to close(t+1).
+    features = _features(frame)
+    target = frame["Close"].astype(float).shift(-1) / frame["Close"].astype(float) - 1
+    valid = features.notna().all(axis=1) & target.notna()
+    return features.loc[valid], target.loc[valid]
 
 
 def _select_model(x_train, y_train, x_valid, y_valid):
@@ -75,18 +76,7 @@ def _select_model(x_train, y_train, x_valid, y_valid):
         model.fit(x_train, y_train)
         prediction = model.predict(x_valid)
         scores[name] = float(np.mean(np.abs(y_valid.to_numpy() - prediction)))
-    best_name = min(scores, key=scores.get)
-    return best_name, scores
-
-
-def _fit_selected(x_train, y_train, x_valid, y_valid, x_test=None):
-    best_name, scores = _select_model(x_train, y_train, x_valid, y_valid)
-    model = MODEL_FACTORIES[best_name]()
-    if x_test is None:
-        model.fit(pd.concat([x_train, x_valid]), pd.concat([y_train, y_valid]))
-        return best_name, model, scores
-    model.fit(x_train, y_train)
-    return best_name, model, scores
+    return min(scores, key=scores.get), scores
 
 
 def _prepare_splits(frame):
@@ -113,15 +103,13 @@ def predict_stock(symbol):
         if splits is None:
             return {"current_price": None, "predicted_price": None, "signal": "NO DATA",
                     "note": "At least 100 clean historical feature rows are required."}
-
         x_train, y_train, x_valid, y_valid, _, _ = splits
-        model_name, model, validation_scores = _fit_selected(
-            x_train, y_train, x_valid, y_valid
-        )
-        latest_x, _ = _dataset(frame)
-        latest_features = latest_x.iloc[[-1]]
-        # Refit the selected model using all currently available labelled history.
+        model_name, validation_scores = _select_model(x_train, y_train, x_valid, y_valid)
+
+        # Train the selected model on every labelled row, then predict using
+        # the latest session's features (which have no next-day label yet).
         all_x, all_y = _dataset(frame)
+        latest_features = _features(frame).dropna().iloc[[-1]]
         model = MODEL_FACTORIES[model_name]()
         model.fit(all_x, all_y)
         predicted_return = float(model.predict(latest_features)[0])
@@ -153,11 +141,8 @@ def evaluate_prediction(symbol):
         splits = _prepare_splits(frame)
         if splits is None:
             return {"error": "Not enough clean historical data to evaluate this symbol"}
-
         x_train, y_train, x_valid, y_valid, x_test, y_test = splits
-        model_name, _, validation_scores = _fit_selected(
-            x_train, y_train, x_valid, y_valid
-        )
+        model_name, validation_scores = _select_model(x_train, y_train, x_valid, y_valid)
         model = MODEL_FACTORIES[model_name]()
         model.fit(pd.concat([x_train, x_valid]), pd.concat([y_train, y_valid]))
         predicted_returns = model.predict(x_test)
@@ -165,14 +150,11 @@ def evaluate_prediction(symbol):
         previous_closes = frame.loc[x_test.index, "Close"].astype(float).to_numpy()
         actual_closes = previous_closes * (1 + y_test.to_numpy())
         predicted_closes = previous_closes * (1 + predicted_returns)
-        actual_directions = y_test.to_numpy() > 0
-        predicted_directions = predicted_returns > 0
-        directional_accuracy = float(np.mean(actual_directions == predicted_directions) * 100)
+        directional_accuracy = float(np.mean((y_test.to_numpy() > 0) == (predicted_returns > 0)) * 100)
         mae = float(np.mean(np.abs(actual_closes - predicted_closes)))
         mape = float(np.mean(np.abs((actual_closes - predicted_closes) / actual_closes)) * 100)
         recent = min(60, len(actual_closes))
         dates = [d.strftime("%Y-%m-%d") for d in x_test.index[-recent:]]
-
         return {
             "symbol": symbol,
             "model": model_name,
