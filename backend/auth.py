@@ -1,9 +1,10 @@
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
+import os
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-SECRET = "mysecretkey"
+SECRET = os.getenv("JWT_SECRET", "mysecretkey")
 ALGORITHM = "HS256"
 
 security = HTTPBearer()
