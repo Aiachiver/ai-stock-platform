@@ -9,6 +9,7 @@ from services.stock_service import get_stock_data
 from services.quote_service import get_stock_quote
 from services.prediction_service import get_prediction
 from ml_model import evaluate_prediction
+from services.premium_service import get_market_intelligence, get_strategy_backtest, get_portfolio_risk
 from services.trade_service import get_price
 from websocket import price_stream
 from auth import create_token, verify_token
@@ -218,6 +219,31 @@ def portfolio_chart(db: Session = Depends(get_db), username: str = Depends(verif
         invested = position["total_cost"]
         result.append({"symbol": symbol,"invested": round(invested, 2),"current_value": round(current_value, 2),"profit": round(current_value - invested, 2)})
     return result
+
+@app.get("/insights/{symbol}")
+def market_intelligence(symbol: str):
+    try:
+        return get_market_intelligence(normalize_symbol(symbol))
+    except Exception as e:
+        return {"symbol": normalize_symbol(symbol), "error": "Market intelligence is temporarily unavailable"}
+
+@app.get("/backtest/{symbol}")
+def strategy_backtest(symbol: str, fast_window: int = 20, slow_window: int = 50):
+    try:
+        return get_strategy_backtest(normalize_symbol(symbol), fast_window, slow_window)
+    except Exception as e:
+        return {"error": "Unable to run strategy backtest"}
+
+@app.get("/portfolio/risk")
+def portfolio_risk(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    user = get_current_user(username, db)
+    if not user:
+        return {"error": "User not found"}
+    trades = db.query(models.Trade).filter(models.Trade.user_id == user.id).order_by(models.Trade.id).all()
+    try:
+        return get_portfolio_risk(trades)
+    except Exception:
+        return {"error": "Unable to calculate portfolio risk"}
 
 @app.websocket("/ws/{symbol}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
