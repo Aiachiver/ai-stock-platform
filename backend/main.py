@@ -13,6 +13,7 @@ from services.premium_service import get_market_intelligence, get_strategy_backt
 from services.trade_service import get_price
 from websocket import price_stream
 from auth import create_token, verify_token
+from security import hash_password, verify_password
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="AI Stock Trading API", version="1.0.0")
@@ -278,7 +279,7 @@ def register(data: LoginData, db: Session = Depends(get_db)):
     existing_user = db.query(models.User).filter(models.User.username == username).first()
     if existing_user:
         return {"status": "fail", "message": "Username already exists"}
-    new_user = models.User(username=username, password=data.password, balance=10000.0)
+    new_user = models.User(username=username, password=hash_password(data.password), balance=10000.0)
     try:
         db.add(new_user)
         db.commit()
