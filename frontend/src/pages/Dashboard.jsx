@@ -6,6 +6,7 @@ import TradePanel from "../components/TradePanel";
 import PredictionBox from "../components/PredictionBox";
 import PortfolioCharts from "../components/PortfolioCharts";
 import StockOverview from "../components/StockOverview";
+import PredictionPerformance from "../components/PredictionPerformance";
 
 
 function Dashboard() {
@@ -26,6 +27,7 @@ function Dashboard() {
   // Current live stock price
   const [livePrice, setLivePrice] = useState(null);
   const [quote, setQuote] = useState(null);
+  const [performance, setPerformance] = useState(null);
 
   // Portfolio details
   const [details, setDetails] = useState(null);
@@ -61,6 +63,7 @@ function Dashboard() {
       const [
         stockRes,
         quoteRes,
+        performanceRes,
         predictionRes,
         detailsRes,
         positionsRes,
@@ -74,6 +77,9 @@ function Dashboard() {
 
         // Market overview and fundamentals
         API.get(`/quote/${symbol}`),
+
+        // Historical prediction evaluation
+        API.get(`/performance/${symbol}`),
 
         // ML prediction
         API.get(`/predict/${symbol}`),
@@ -104,6 +110,7 @@ function Dashboard() {
       );
 
       setQuote(quoteRes.data?.error ? null : quoteRes.data);
+      setPerformance(performanceRes.data?.error ? null : performanceRes.data);
 
       setPrediction(
         predictionRes.data || null
@@ -688,10 +695,11 @@ function Dashboard() {
 
       <div
         style={{
-          background: "#ffffff",
+          background: "#1e293b",
           padding: "20px",
+          border: "1px solid #334155",
           borderRadius: "12px",
-          width: "90%",
+          width: "100%",
           margin: "auto",
           boxSizing: "border-box"
         }}
@@ -718,6 +726,7 @@ function Dashboard() {
         <PredictionBox
           prediction={prediction}
         />
+        <PredictionPerformance data={performance} />
 
       </div>
 
