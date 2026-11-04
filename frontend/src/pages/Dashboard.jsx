@@ -5,6 +5,7 @@ import StockChart from "../components/StockChart";
 import TradePanel from "../components/TradePanel";
 import PredictionBox from "../components/PredictionBox";
 import PortfolioCharts from "../components/PortfolioCharts";
+import StockOverview from "../components/StockOverview";
 
 
 function Dashboard() {
@@ -24,6 +25,7 @@ function Dashboard() {
 
   // Current live stock price
   const [livePrice, setLivePrice] = useState(null);
+  const [quote, setQuote] = useState(null);
 
   // Portfolio details
   const [details, setDetails] = useState(null);
@@ -58,6 +60,7 @@ function Dashboard() {
       // Load all dashboard data together
       const [
         stockRes,
+        quoteRes,
         predictionRes,
         detailsRes,
         positionsRes,
@@ -68,6 +71,9 @@ function Dashboard() {
 
         // Stock chart
         API.get(`/stock/${symbol}`),
+
+        // Market overview and fundamentals
+        API.get(`/quote/${symbol}`),
 
         // ML prediction
         API.get(`/predict/${symbol}`),
@@ -96,6 +102,8 @@ function Dashboard() {
       setStockData(
         stockRes.data?.ohlc || []
       );
+
+      setQuote(quoteRes.data?.error ? null : quoteRes.data);
 
       setPrediction(
         predictionRes.data || null
@@ -513,6 +521,8 @@ function Dashboard() {
       </div>
 
 
+
+      <StockOverview quote={quote} livePrice={livePrice} />
 
       {/* =================================================
           PORTFOLIO SUMMARY
