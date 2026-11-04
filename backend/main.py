@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from database import engine, Base, SessionLocal
 import models
 from services.stock_service import get_stock_data
+from services.quote_service import get_stock_quote
 from services.prediction_service import get_prediction
 from services.trade_service import get_price
 from websocket import price_stream
@@ -79,6 +80,13 @@ def stock(symbol: str):
         return {"ohlc": get_stock_data(normalize_symbol(symbol))}
     except Exception as e:
         return {"error": str(e), "ohlc": []}
+
+@app.get("/quote/{symbol}")
+def stock_quote(symbol: str):
+    try:
+        return get_stock_quote(normalize_symbol(symbol))
+    except Exception as e:
+        return {"symbol": normalize_symbol(symbol), "error": str(e)}
 
 @app.get("/predict/{symbol}")
 def predict(symbol: str):
