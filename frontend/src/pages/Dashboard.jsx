@@ -7,6 +7,8 @@ import PredictionBox from "../components/PredictionBox";
 import PortfolioCharts from "../components/PortfolioCharts";
 import StockOverview from "../components/StockOverview";
 import PredictionPerformance from "../components/PredictionPerformance";
+import PremiumAnalytics from "../components/PremiumAnalytics";
+import PortfolioRisk from "../components/PortfolioRisk";
 
 
 function Dashboard() {
@@ -28,6 +30,9 @@ function Dashboard() {
   const [livePrice, setLivePrice] = useState(null);
   const [quote, setQuote] = useState(null);
   const [performance, setPerformance] = useState(null);
+  const [insights, setInsights] = useState(null);
+  const [backtest, setBacktest] = useState(null);
+  const [risk, setRisk] = useState(null);
 
   // Portfolio details
   const [details, setDetails] = useState(null);
@@ -69,7 +74,10 @@ function Dashboard() {
         positionsRes,
         chartRes,
         historyRes,
-        userRes
+        userRes,
+        insightsRes,
+        backtestRes,
+        riskRes
       ] = await Promise.all([
 
         // Stock chart
@@ -97,7 +105,12 @@ function Dashboard() {
         API.get("/history"),
 
         // Logged-in user
-        API.get("/me")
+        API.get("/me"),
+
+        // Optional premium research endpoints should not block the core dashboard
+        API.get(`/insights/${symbol}`).catch(() => ({ data: null })),
+        API.get(`/backtest/${symbol}`).catch(() => ({ data: null })),
+        API.get("/portfolio/risk").catch(() => ({ data: null }))
       ]);
 
 
@@ -111,6 +124,9 @@ function Dashboard() {
 
       setQuote(quoteRes.data?.error ? null : quoteRes.data);
       setPerformance(performanceRes.data?.error ? null : performanceRes.data);
+      setInsights(insightsRes.data?.error ? null : insightsRes.data);
+      setBacktest(backtestRes.data?.error ? null : backtestRes.data);
+      setRisk(riskRes.data?.error ? null : riskRes.data);
 
       setPrediction(
         predictionRes.data || null
