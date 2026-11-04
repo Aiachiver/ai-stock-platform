@@ -8,6 +8,7 @@ import models
 from services.stock_service import get_stock_data
 from services.quote_service import get_stock_quote
 from services.prediction_service import get_prediction
+from ml_model import evaluate_prediction
 from services.trade_service import get_price
 from websocket import price_stream
 from auth import create_token, verify_token
@@ -87,6 +88,10 @@ def stock_quote(symbol: str):
         return get_stock_quote(normalize_symbol(symbol))
     except Exception as e:
         return {"symbol": normalize_symbol(symbol), "error": str(e)}
+
+@app.get("/performance/{symbol}")
+def prediction_performance(symbol: str):
+    return evaluate_prediction(normalize_symbol(symbol))
 
 @app.get("/predict/{symbol}")
 def predict(symbol: str):
