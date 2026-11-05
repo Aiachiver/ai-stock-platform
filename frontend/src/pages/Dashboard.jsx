@@ -7,6 +7,8 @@ import PredictionBox from "../components/PredictionBox";
 import PortfolioCharts from "../components/PortfolioCharts";
 import StockOverview from "../components/StockOverview";
 import PredictionPerformance from "../components/PredictionPerformance";
+import PremiumAnalytics from "../components/PremiumAnalytics";
+import PortfolioRisk from "../components/PortfolioRisk";
 
 
 function Dashboard() {
@@ -24,6 +26,10 @@ function Dashboard() {
   const [livePrice, setLivePrice] = useState(null);
   const [quote, setQuote] = useState(null);
   const [performance, setPerformance] = useState(null);
+  const [insights, setInsights] = useState(null);
+  const [backtest, setBacktest] = useState(null);
+  const [risk, setRisk] = useState(null);
+  const [premiumLoading, setPremiumLoading] = useState(false);
 
   // Portfolio details
   const [details, setDetails] = useState(null);
@@ -96,10 +102,26 @@ function Dashboard() {
   };
 
 
-  // Reload when selected stock changes.
+  // Load optional research modules independently so one provider outage
+  // cannot block the core quote, chart, portfolio or prediction dashboard.
+  const loadPremium = async () => {
+    setPremiumLoading(true);
+    const results = await Promise.allSettled([
+      API.get(`/insights/${symbol}`),
+      API.get(`/backtest/${symbol}`),
+      API.get("/portfolio/risk")
+    ]);
+    if (results[0].status === "fulfilled") setInsights(results[0].value.data);
+    if (results[1].status === "fulfilled") setBacktest(results[1].value.data);
+    if (results[2].status === "fulfilled") setRisk(results[2].value.data);
+    setPremiumLoading(false);
+  };
+
+  // Reload core and research data when the selected symbol changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadDashboard();
+    loadPremium();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol]);
 
@@ -155,6 +177,7 @@ function Dashboard() {
   // Refresh dashboard
   const refreshDashboard = () => {
     loadDashboard();
+    loadPremium();
   };
 
 
@@ -255,6 +278,16 @@ function Dashboard() {
         </div>
       </div>
 
+
+      <div style={{
+        background: "#172554", border: "1px solid #1d4ed8", borderRadius: 12,
+        padding: "12px 16px", marginBottom: 20, color: "#dbeafe",
+        fontSize: 13, lineHeight: 1.6
+      }}>
+        <strong>Research workspace · Paper trading only.</strong>{" "}
+        No real brokerage orders are sent. Quotes may be delayed; model signals,
+        headline sentiment and historical simulations are experimental and are not investment advice.
+      </div>
 
       {/* STOCK SELECTOR + LIVE PRICE */}
       <div
@@ -436,6 +469,10 @@ function Dashboard() {
 
       {/* PORTFOLIO CHARTS */}
       <PortfolioCharts data={chartData} />
+
+      {/* RESEARCH AND RISK TOOLS */}
+      <PremiumAnalytics insights={insights} backtest={backtest} loading={premiumLoading} />
+      <PortfolioRisk data={risk} loading={premiumLoading} />
 
 
       {/* CURRENT POSITIONS */}
