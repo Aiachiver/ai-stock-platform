@@ -1,41 +1,74 @@
 import React from "react";
 import Chart from "react-apexcharts";
 
-function StockChart({ data, error }) {
+function StockChart({ data, error, symbol = "Stock" }) {
   const validData = Array.isArray(data)
-    ? data.filter(item => item && ["open", "high", "low", "close"].every(key => Number.isFinite(Number(item[key]))))
+    ? data.filter((item) => item && item.time && Number.isFinite(Number(item.close)))
     : [];
 
   if (!validData.length) {
     return (
-      <div style={{ background: "#1e293b", color: "#cbd5e1", borderRadius: 14, padding: 24, minHeight: 180 }}>
-        <h3 style={{ marginTop: 0 }}>Price chart</h3>
-        {error || "Historical price data is temporarily unavailable. Try Refresh in a moment."}
+      <div style={{ background: "#1e293b", color: "#cbd5e1", borderRadius: 14, padding: 24, minHeight: 220 }}>
+        <h3 style={{ marginTop: 0 }}>{symbol} · Historical Market Price</h3>
+        {error || "Price history is loading or temporarily unavailable."}
       </div>
     );
   }
 
   const series = [{
-    name: "Price",
-    data: validData.map(item => ({
+    name: `${symbol} closing price`,
+    data: validData.map((item) => ({
       x: new Date(item.time).getTime(),
-      y: [Number(item.open), Number(item.high), Number(item.low), Number(item.close)]
-    }))
+      y: Number(item.close)
+    })).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
   }];
 
   const options = {
-    chart: { type: "candlestick", height: 390, background: "#1e293b", foreColor: "#cbd5e1", toolbar: { show: true }, animations: { enabled: false } },
+    chart: {
+      type: "area",
+      height: 390,
+      background: "#1e293b",
+      foreColor: "#cbd5e1",
+      toolbar: { show: true },
+      animations: { enabled: true, easing: "easeinout", speed: 350 },
+      zoom: { enabled: true }
+    },
     theme: { mode: "dark" },
-    title: { text: "3-Month Historical Price · Daily OHLC", align: "left", style: { color: "#f8fafc", fontSize: "16px" } },
-    plotOptions: { candlestick: { colors: { upward: "#22c55e", downward: "#ef4444" }, wick: { useFillColor: true } } },
-    xaxis: { type: "datetime", labels: { datetimeUTC: false, style: { colors: "#94a3b8" } } },
-    yaxis: { tooltip: { enabled: true }, labels: { style: { colors: "#94a3b8" } } },
-    grid: { borderColor: "#334155" },
-    tooltip: { theme: "dark" },
+    colors: ["#38bdf8"],
+    title: {
+      text: `${symbol} · Historical Market Price (Daily Close)`,
+      align: "left",
+      style: { color: "#f8fafc", fontSize: "16px", fontWeight: 600 }
+    },
+    dataLabels: { enabled: false },
+    stroke: { curve: "smooth", width: 2.5 },
+    fill: { type: "gradient", gradient: { opacityFrom: 0.28, opacityTo: 0.02, stops: [0, 90, 100] } },
+    markers: { size: 0, hover: { size: 4 } },
+    xaxis: {
+      type: "datetime",
+      labels: { datetimeUTC: false, style: { colors: "#94a3b8" } },
+      tooltip: { enabled: false }
+    },
+    yaxis: {
+      labels: { style: { colors: "#94a3b8" }, formatter: (value) => `$${value.toFixed(2)}` }
+    },
+    grid: { borderColor: "#334155", strokeDashArray: 4 },
+    tooltip: {
+      theme: "dark",
+      x: { format: "dd MMM yyyy" },
+      y: { formatter: (value) => `$${value.toFixed(2)}` }
+    },
     noData: { text: "No price data", style: { color: "#cbd5e1" } }
   };
 
-  return <Chart options={options} series={series} type="candlestick" height={390} />;
+  return (
+    <div style={{ minHeight: 390 }}>
+      <Chart options={options} series={series} type="area" height={390} />
+      <p style={{ color: "#94a3b8", fontSize: 12, margin: "8px 2px 0" }}>
+        Daily closing prices · Historical market data may be delayed; this is not a tick-by-tick live exchange feed.
+      </p>
+    </div>
+  );
 }
 
 export default StockChart;
