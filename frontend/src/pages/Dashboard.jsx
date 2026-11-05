@@ -56,8 +56,8 @@ function Dashboard() {
     setStockError("");
     setStockData([]);
     setQuote(null);
-    setPrediction(null);
-    setPerformance(null);
+    setPrediction({ loading: true });
+    setPerformance({ loading: true });
 
     try {
       const stockResponse = await API.get(`/stock/${selectedSymbol}`);
@@ -116,16 +116,20 @@ function Dashboard() {
 
     // Research calls are intentionally independent from the primary price chart.
     const research = await Promise.allSettled([
-      API.get(`/performance/${selectedSymbol}`),
-      API.get(`/predict/${selectedSymbol}`)
+      API.get(`/performance/${selectedSymbol}`, { timeout: 90000 }),
+      API.get(`/predict/${selectedSymbol}`, { timeout: 90000 })
     ]);
     if (requestId !== requestSequence.current) return;
     setPerformance(research[0].status === "fulfilled"
       ? research[0].value.data
-      : { error: "Model evaluation is temporarily unavailable." });
+      : { error: research[0].reason?.code === "ECONNABORTED"
+          ? "Model validation exceeded the 90-second processing limit. Retry after the backend is ready."
+          : "Model validation request failed. Check backend service logs." });
     setPrediction(research[1].status === "fulfilled"
       ? research[1].value.data
-      : { signal: "NO DATA", note: "Forecast is temporarily unavailable." });
+      : { signal: "NO DATA", note: research[1].reason?.code === "ECONNABORTED"
+          ? "Forecast exceeded the 90-second processing limit. Retry after the backend is ready."
+          : "Forecast request failed. Check backend service logs." });
   };
 
   // After a paper order, update only account data. Never reload charts or retrain models.
@@ -494,7 +498,7 @@ function Dashboard() {
       {/* ML PREDICTION */}
       <div style={{ marginTop: "20px" }}>
         <PredictionBox prediction={prediction} />
-        <PredictionPerformance data={performance} />
+        <PredictionPerformance data={performance} loading={Boolean(performance?.loading)} />
       </div>
 
 
