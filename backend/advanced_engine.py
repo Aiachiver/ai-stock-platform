@@ -99,7 +99,7 @@ def _models():
             l2_regularization=2.0, random_state=42
         ),
         "RandomForest": RandomForestClassifier(
-            n_estimators=300, min_samples_leaf=8, max_features=0.75,
+            n_estimators=120, min_samples_leaf=8, max_features=0.75,
             class_weight="balanced_subsample", random_state=42, n_jobs=-1
         ),
         "ExtraTrees": ExtraTreesClassifier(
@@ -191,7 +191,7 @@ def analyze_stock_v3(symbol: str) -> dict:
 
     # Long-only paper strategy: enter only on calibrated high-confidence UP calls.
     buy_mask = ensemble_test >= CONFIDENCE_THRESHOLD
-    daily_cost = TRADING_COST_BPS / 10000
+    daily_cost = (2 * TRADING_COST_BPS) / 10000
     strategy_returns = np.where(buy_mask, test_returns.to_numpy() - daily_cost, 0.0)
     equity = np.cumprod(1 + strategy_returns)
     peak = np.maximum.accumulate(equity)
@@ -242,7 +242,7 @@ def analyze_stock_v3(symbol: str) -> dict:
         },
         "paper_backtest": {
             "strategy": "Long-only; buy when calibrated UP probability >= 60%, otherwise cash",
-            "transaction_cost_assumption_bps_per_entry": TRADING_COST_BPS,
+            "round_trip_transaction_cost_bps": 2 * TRADING_COST_BPS,
             "strategy_total_return_pct": round(float(total_return), 2),
             "buy_and_hold_return_pct": round(float(buy_hold), 2),
             "max_drawdown_pct": round(float(np.min(drawdown)), 2) if len(drawdown) else 0.0,
