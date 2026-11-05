@@ -7,6 +7,8 @@ window. It does not promise profitable or 70-80% accurate forecasts.
 from __future__ import annotations
 
 import warnings
+import time
+from threading import Lock
 
 import numpy as np
 import pandas as pd
@@ -102,7 +104,7 @@ def _models():
             class_weight="balanced_subsample", random_state=42, n_jobs=-1
         ),
         "ExtraTrees": ExtraTreesClassifier(
-            n_estimators=300, min_samples_leaf=8, max_features=0.75,
+            n_estimators=120, min_samples_leaf=8, max_features=0.75,
             class_weight="balanced", random_state=42, n_jobs=-1
         ),
         "LogisticRegression": make_pipeline(
@@ -172,7 +174,7 @@ def _regime(stock: pd.DataFrame, market_returns: pd.Series) -> str:
     return "Sideways / mixed"
 
 
-def analyze_stock_v3(symbol: str) -> dict:
+def _analyze_stock_v3_uncached(symbol: str) -> dict:
     """Return a validated next-session probability and conservative decision."""
     symbol = symbol.strip().upper()
     if not symbol or len(symbol) > 20:
@@ -298,3 +300,34 @@ def analyze_stock_v3(symbol: str) -> dict:
             "any real-money decision; this endpoint does not execute broker orders."
         ),
     }
+
+
+# Bounded in-process cache prevents repeated expensive fitting for the same symbol.
+_CACHE_TTL_SECONDS = 900
+_CACHE_MAX_SYMBOLS = 16
+_ANALYSIS_CACHE = {}
+_ANALYSIS_LOCKS = {}
+_CACHE_GUARD = Lock()
+
+
+def analyze_stock_v3(symbol: str) -> dict:
+    """Cached public entry point; serializes concurrent analysis for one symbol."""
+    key = symbol.strip().upper()
+    with _CACHE_GUARD:
+        lock = _ANALYSIS_LOCKS.setdefault(key, Lock())
+    with lock:
+        now = time.monotonic()
+        with _CACHE_GUARD:
+            cached = _ANALYSIS_CACHE.get(key)
+            if cached and now - cached["created_at"] < _CACHE_TTL_SECONDS:
+                return cached["payload"].copy()
+
+        result = _analyze_stock_v3_uncached(key)
+        with _CACHE_GUARD:
+            _ANALYSIS_CACHE[key] = {"created_at": time.monotonic(), "payload": result}
+            # Evict the oldest cached symbol when the small memory bound is reached.
+            while len(_ANALYSIS_CACHE) > _CACHE_MAX_SYMBOLS:
+                oldest = min(_ANALYSIS_CACHE, key=lambda item: _ANALYSIS_CACHE[item]["created_at"])
+                _ANALYSIS_CACHE.pop(oldest, None)
+                _ANALYSIS_LOCKS.pop(oldest, None)
+        return result.copy()
