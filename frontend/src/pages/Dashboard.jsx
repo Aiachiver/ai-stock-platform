@@ -7,6 +7,7 @@ import PredictionBox from "../components/PredictionBox";
 import PortfolioCharts from "../components/PortfolioCharts";
 import StockOverview from "../components/StockOverview";
 import PredictionPerformance from "../components/PredictionPerformance";
+import AdvancedIntelligence from "../components/AdvancedIntelligence";
 import PremiumAnalytics from "../components/PremiumAnalytics";
 import PortfolioRisk from "../components/PortfolioRisk";
 
@@ -27,6 +28,7 @@ function Dashboard() {
   const [livePrice, setLivePrice] = useState(null);
   const [quote, setQuote] = useState(null);
   const [performance, setPerformance] = useState(null);
+  const [advancedIntelligence, setAdvancedIntelligence] = useState(null);
   const [insights, setInsights] = useState(null);
   const [backtest, setBacktest] = useState(null);
   const [risk, setRisk] = useState(null);
@@ -58,6 +60,7 @@ function Dashboard() {
     setQuote(null);
     setPrediction({ loading: true });
     setPerformance({ loading: true });
+    setAdvancedIntelligence({ loading: true });
 
     try {
       const stockResponse = await API.get(`/stock/${selectedSymbol}`);
@@ -117,7 +120,8 @@ function Dashboard() {
     // Research calls are intentionally independent from the primary price chart.
     const research = await Promise.allSettled([
       API.get(`/performance/${selectedSymbol}`, { timeout: 90000 }),
-      API.get(`/predict/${selectedSymbol}`, { timeout: 90000 })
+      API.get(`/predict/${selectedSymbol}`, { timeout: 90000 }),
+      API.get(`/intelligence/${selectedSymbol}`, { timeout: 120000 })
     ]);
     if (requestId !== requestSequence.current) return;
     setPerformance(research[0].status === "fulfilled"
@@ -130,6 +134,11 @@ function Dashboard() {
       : { signal: "NO DATA", note: research[1].reason?.code === "ECONNABORTED"
           ? "Forecast exceeded the 90-second processing limit. Retry after the backend is ready."
           : "Forecast request failed. Check backend service logs." });
+    setAdvancedIntelligence(research[2].status === "fulfilled"
+      ? research[2].value.data
+      : { error: research[2].reason?.code === "ECONNABORTED"
+          ? "Advanced intelligence exceeded the 120-second processing limit. Retry after the backend is ready."
+          : "Advanced intelligence request failed. Check backend service logs." });
   };
 
   // After a paper order, update only account data. Never reload charts or retrain models.
@@ -499,6 +508,7 @@ function Dashboard() {
       <div style={{ marginTop: "20px" }}>
         <PredictionBox prediction={prediction} />
         <PredictionPerformance data={performance} loading={Boolean(performance?.loading)} />
+        <AdvancedIntelligence data={advancedIntelligence} loading={Boolean(advancedIntelligence?.loading)} />
       </div>
 
 

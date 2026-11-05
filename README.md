@@ -71,6 +71,7 @@ Configure these values in the backend hosting provider:
 - `GET /stock/{symbol}` – historical OHLC data
 - `GET /predict/{symbol}` – experimental next-session estimate
 - `GET /performance/{symbol}` – chronological holdout and model comparison
+- `GET /intelligence/{symbol}` – V3.1 calibrated probability ensemble, untouched chronological test metrics and long-only paper backtest
 - `GET /insights/{symbol}` – headline keyword sentiment
 - `GET /backtest/{symbol}` – historical moving-average simulation
 - `GET /portfolio/risk` – authenticated paper-portfolio risk estimates
@@ -82,7 +83,8 @@ Configure these values in the backend hosting provider:
 - Historical metrics are sample- and period-dependent. Validation results are not the same as final holdout results. Do not advertise a single accuracy figure without its symbol, horizon, test dates, sample count, benchmark and evaluation method.
 - Signal accuracy is measured only on signals that cross the model's threshold. Signal coverage must be shown beside it.
 - Headline sentiment is a simple keyword heuristic, not a contextual NLP model.
-- Strategy backtests are historical simulations and currently do not fully model taxes, brokerage, slippage, liquidity, market impact or corporate actions.
+- Strategy backtests are historical simulations and do not fully model taxes, brokerage beyond the stated simple transaction-cost assumption, slippage, liquidity, market impact or corporate actions.
+- V3.1 probability calibration uses a chronological fit/calibration split; reported test metrics are specific to the symbol and test window. If no predictions cross the confidence threshold, strategy exposure and return may be zero; this is a valid abstention result, not evidence of a profitable strategy.
 - Yahoo Finance data may be delayed, incomplete or unavailable. Review provider terms and obtain appropriate market-data rights before commercial redistribution.
 - This repository does not connect to a broker and does not route real orders.
 
