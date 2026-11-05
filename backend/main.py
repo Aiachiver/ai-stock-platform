@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, WebSocket
+import os
+from fastapi import FastAPI, Depends, WebSocket, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -16,8 +17,26 @@ from auth import create_token, verify_token
 from security import hash_password, verify_password
 
 Base.metadata.create_all(bind=engine)
-app = FastAPI(title="AI Stock Trading API", version="1.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
+app = FastAPI(
+    title="TradeSight AI API",
+    version="1.1.0",
+    description=(
+        "Educational stock research and paper-trading platform. "
+        "Market data may be delayed. Model outputs are experimental and are not investment advice."
+    ),
+)
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
+)
 
 def get_db():
     db = SessionLocal()
@@ -75,7 +94,22 @@ def home():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "ai-stock-trading-api"}
+    return {"status": "ok", "service": "tradesight-ai-api"}
+
+
+@app.get("/platform/status")
+def platform_status():
+    """Public product-mode and data-provenance disclosure for clients."""
+    return {
+        "platform": "TradeSight AI",
+        "mode": "paper_trading",
+        "real_order_execution": False,
+        "market_data_provider": "Yahoo Finance via yfinance",
+        "market_data_note": "Quotes may be delayed and are not an exchange-grade real-time feed.",
+        "prediction_horizon": "Next trading session",
+        "prediction_status": "Experimental model output; not investment advice or a guaranteed result.",
+        "risk_disclosure": "Historical model metrics do not guarantee future performance.",
+    }
 
 @app.get("/stock/{symbol}")
 def stock(symbol: str):
@@ -258,10 +292,17 @@ class LoginData(BaseModel):
 def login(data: LoginData, db: Session = Depends(get_db)):
     username = data.username.strip()
     if not username or not data.password:
-        return {"status": "fail"}
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username and password are required")
+
     user = db.query(models.User).filter(models.User.username == username).first()
-    if not user or user.password != data.password:
-        return {"status": "fail"}
+    if not user or not verify_password(data.password, user.password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+
+    # Migrate legacy plaintext passwords to bcrypt after a successful login.
+    if not user.password.startswith(("$2a$", "$2b$", "$2y$")):
+        user.password = hash_password(data.password)
+        db.commit()
+
     return {"status": "success", "token": create_token(user.username)}
 
 @app.get("/me")
@@ -274,8 +315,12 @@ def current_user(db: Session = Depends(get_db), username: str = Depends(verify_t
 @app.post("/register")
 def register(data: LoginData, db: Session = Depends(get_db)):
     username = data.username.strip()
-    if len(username) < 3 or not data.password:
-        return {"status": "fail", "message": "Username must be at least 3 characters and password is required"}
+    if len(username) < 3 or len(username) > 50:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Username must be 3–50 characters")
+    if len(data.password) < 8:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Password must be at least 8 characters")
+    if len(data.password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Password must be at most 72 UTF-8 bytes")
     existing_user = db.query(models.User).filter(models.User.username == username).first()
     if existing_user:
         return {"status": "fail", "message": "Username already exists"}
@@ -285,6 +330,6 @@ def register(data: LoginData, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_user)
         return {"status": "success", "message": "Registration successful", "user_id": new_user.id}
-    except Exception as e:
+    except Exception:
         db.rollback()
-        return {"status": "fail", "message": f"Registration failed: {str(e)}"}
+        return {"status": "fail", "message": "Registration failed. Please try again."}
