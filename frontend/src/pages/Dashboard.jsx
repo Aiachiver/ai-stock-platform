@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import API, { API_BASE_URL } from "../services/api";
 
 import StockChart from "../components/StockChart";
@@ -44,49 +44,88 @@ function Dashboard() {
   // Logged-in username and update time
   const [username, setUsername] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
+  const requestSequence = useRef(0);
 
 
-  // Load fast dashboard essentials first; expensive ML endpoints run in background.
+  // Load the selected stock chart first. Slower quote and account endpoints
+  // must never hold the price chart hostage.
   const loadDashboard = async () => {
+    const requestId = ++requestSequence.current;
+    const selectedSymbol = symbol;
     setLoading(true);
+    setStockError("");
+    setStockData([]);
+    setQuote(null);
+    setPrediction(null);
+    setPerformance(null);
+
     try {
-      const results = await Promise.allSettled([
-        API.get(`/stock/${symbol}`),
-        API.get(`/quote/${symbol}`),
-        API.get("/portfolio/details"),
-        API.get("/portfolio/positions"),
-        API.get("/portfolio/chart"),
-        API.get("/history"),
-        API.get("/me")
-      ]);
-      const value = (index) => results[index].status === "fulfilled" ? results[index].value.data : null;
-      const stock = value(0);
-      const quoteData = value(1);
-      setStockData(stock?.ohlc || []);
-      setStockError(stock?.error || (results[0].status === "rejected" ? "Historical prices could not be loaded." : ""));
-      setQuote(quoteData?.error ? null : quoteData);
-      setDetails(value(2));
-      setPositions(Array.isArray(value(3)) ? value(3) : []);
-      setChartData(Array.isArray(value(4)) ? value(4) : []);
-      setHistory(Array.isArray(value(5)) ? value(5) : []);
-      const user = value(6);
-      if (user?.username) setUsername(user.username);
-      setLastUpdated(new Date());
+      const stockResponse = await API.get(`/stock/${selectedSymbol}`);
+      if (requestId !== requestSequence.current) return;
+      const stock = stockResponse.data || {};
+      const bars = Array.isArray(stock.ohlc) ? stock.ohlc : [];
+      setStockData(bars);
+      setStockError(stock.error || (bars.length ? "" : "Historical price data is unavailable from the provider."));
+      // Keep a useful market snapshot visible even if the separate quote endpoint fails.
+      const latest = bars[bars.length - 1];
+      const previous = bars[bars.length - 2];
+      if (latest) {
+        const change = previous ? Number(latest.close) - Number(previous.close) : null;
+        setQuote({
+          symbol: selectedSymbol,
+          company_name: selectedSymbol,
+          price: Number(latest.close),
+          previous_close: previous ? Number(previous.close) : null,
+          change,
+          change_percent: previous?.close ? (change / Number(previous.close)) * 100 : null,
+          open: Number(latest.open),
+          day_high: Number(latest.high),
+          day_low: Number(latest.low),
+          currency: "USD",
+          data_note: "Historical daily data · Yahoo Finance"
+        });
+      }
     } catch (error) {
-      console.error("DASHBOARD ERROR:", error);
+      if (requestId === requestSequence.current) {
+        setStockData([]);
+        setStockError("Could not load historical prices. Please retry in a moment.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
 
-    // Do not make the first paint wait for model training/evaluation.
-    const research = await Promise.allSettled([
-      API.get(`/performance/${symbol}`),
-      API.get(`/predict/${symbol}`)
+    const essentials = await Promise.allSettled([
+      API.get(`/quote/${selectedSymbol}`),
+      API.get("/portfolio/details"),
+      API.get("/portfolio/positions"),
+      API.get("/portfolio/chart"),
+      API.get("/history"),
+      API.get("/me")
     ]);
-    if (research[0].status === "fulfilled") setPerformance(research[0].value.data);
-    else setPerformance({ error: "Model evaluation is temporarily unavailable." });
-    if (research[1].status === "fulfilled") setPrediction(research[1].value.data);
-    else setPrediction({ signal: "NO DATA", note: "Forecast is temporarily unavailable." });
+    if (requestId !== requestSequence.current) return;
+    const value = (index) => essentials[index].status === "fulfilled" ? essentials[index].value.data : null;
+    const quoteData = value(0);
+    if (quoteData && !quoteData.error) setQuote(quoteData);
+    if (value(1)) setDetails(value(1));
+    setPositions(Array.isArray(value(2)) ? value(2) : []);
+    setChartData(Array.isArray(value(3)) ? value(3) : []);
+    setHistory(Array.isArray(value(4)) ? value(4) : []);
+    const user = value(5);
+    if (user?.username) setUsername(user.username);
+    setLastUpdated(new Date());
+
+    // Research calls are intentionally independent from the primary price chart.
+    const research = await Promise.allSettled([
+      API.get(`/performance/${selectedSymbol}`),
+      API.get(`/predict/${selectedSymbol}`)
+    ]);
+    if (requestId !== requestSequence.current) return;
+    setPerformance(research[0].status === "fulfilled"
+      ? research[0].value.data
+      : { error: "Model evaluation is temporarily unavailable." });
+    setPrediction(research[1].status === "fulfilled"
+      ? research[1].value.data
+      : { signal: "NO DATA", note: "Forecast is temporarily unavailable." });
   };
 
   // After a paper order, update only account data. Never reload charts or retrain models.
@@ -448,7 +487,7 @@ function Dashboard() {
           boxSizing: "border-box"
         }}
       >
-        <StockChart data={stockData} error={stockError} />
+        <StockChart data={stockData} error={stockError} symbol={symbol} />
       </div>
 
 
