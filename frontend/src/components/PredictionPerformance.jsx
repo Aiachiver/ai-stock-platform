@@ -1,7 +1,16 @@
 import React from "react";
 import Chart from "react-apexcharts";
 
-function PredictionPerformance({ data, loading = false }) {\n  if (loading || data?.loading) {\n    return (\n      <section className="research-panel research-loading" aria-live="polite">\n        <div className="research-panel__top"><div><span className="eyebrow">MODEL TRANSPARENCY</span><h2>Model validation</h2></div><span className="research-status"><span className="loading-dot" /> Evaluating holdout data</span></div>\n        <p className="research-muted">Chronological validation is running independently from the price chart.</p>\n        <div className="research-skeleton" />\n      </section>\n    );\n  }
+function PredictionPerformance({ data, loading = false }) {
+  if (loading || data?.loading) {
+    return (
+      <section className="research-panel research-loading" aria-live="polite">
+        <div className="research-panel__top"><div><span className="eyebrow">MODEL TRANSPARENCY</span><h2>Model validation</h2></div><span className="research-status"><span className="loading-dot" /> Evaluating holdout data</span></div>
+        <p className="research-muted">Chronological validation is running independently from the price chart.</p>
+        <div className="research-skeleton" />
+      </section>
+    );
+  }
   if (!data || data.error || !Array.isArray(data.chart) || !data.chart.length) {
     return (
       <section style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, padding: 20, marginTop: 22, color: "#cbd5e1" }}>
