@@ -60,7 +60,17 @@ def _history(symbol, period="3y"):
             if frame is None or frame.empty:
                 continue
             if getattr(frame.columns, "nlevels", 1) > 1:
-                frame.columns = frame.columns.get_level_values(0)
+                levels = [
+                    frame.columns.get_level_values(level)
+                    for level in range(frame.columns.nlevels)
+                ]
+                matching = next(
+                    (level for level in levels if required.issubset(set(level))),
+                    None,
+                )
+                if matching is None:
+                    continue
+                frame.columns = matching
             if not required.issubset(frame.columns):
                 continue
             frame = frame.copy()
@@ -142,9 +152,13 @@ def _features(frame):
     )
 
     # Volume context.
-    features["volume_change"] = volume.pct_change()
-    features["volume_ratio_20"] = volume / volume.rolling(20).mean()
-    features["volume_return_corr_20"] = returns.rolling(20).corr(volume.pct_change())
+    volume_change = volume.pct_change().replace([np.inf, -np.inf], np.nan)
+    volume_ratio = volume / volume.rolling(20).mean().replace(0, np.nan)
+    volume_corr = returns.rolling(20).corr(volume_change)
+    # Missing or constant volume should not invalidate otherwise usable OHLC rows.
+    features["volume_change"] = volume_change.fillna(0)
+    features["volume_ratio_20"] = volume_ratio.replace([np.inf, -np.inf], np.nan).fillna(1)
+    features["volume_return_corr_20"] = volume_corr.fillna(0)
 
     return features.replace([np.inf, -np.inf], np.nan)
 
