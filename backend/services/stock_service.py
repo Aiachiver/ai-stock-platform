@@ -4,8 +4,18 @@ import yfinance as yf
 def _flatten_columns(frame):
     """Normalize yfinance's single- and multi-ticker column formats."""
     if getattr(frame.columns, "nlevels", 1) > 1:
-        # yfinance currently returns (Price, Ticker); select the price level.
-        frame.columns = frame.columns.get_level_values(0)
+        required = {"Open", "High", "Low", "Close"}
+        levels = [
+            frame.columns.get_level_values(level)
+            for level in range(frame.columns.nlevels)
+        ]
+        matching = next(
+            (level for level in levels if required.issubset(set(level))),
+            None,
+        )
+        if matching is None:
+            return frame.iloc[0:0]
+        frame.columns = matching
     return frame
 
 
