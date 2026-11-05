@@ -37,6 +37,9 @@ def _download(symbol: str, period: str = "10y") -> pd.DataFrame:
     missing = [name for name in required if name not in raw.columns]
     if missing:
         raise ValueError("OHLCV data is incomplete: " + ", ".join(missing))
+    if isinstance(raw.index, pd.DatetimeIndex) and raw.index.tz is not None:
+        raw = raw.copy()
+        raw.index = raw.index.tz_localize(None)
     frame = raw[required].copy()
     for col in required:
         frame[col] = pd.to_numeric(frame[col], errors="coerce")
