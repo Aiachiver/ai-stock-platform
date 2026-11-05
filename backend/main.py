@@ -10,6 +10,7 @@ from services.stock_service import get_stock_data
 from services.quote_service import get_stock_quote
 from services.prediction_service import get_prediction
 from ml_model import evaluate_prediction
+from advanced_engine import analyze_stock_v3
 from services.premium_service import get_market_intelligence, get_strategy_backtest, get_portfolio_risk
 from services.trade_service import get_price
 from websocket import price_stream
@@ -128,6 +129,17 @@ def stock_quote(symbol: str):
 @app.get("/performance/{symbol}")
 def prediction_performance(symbol: str):
     return evaluate_prediction(normalize_symbol(symbol))
+
+@app.get("/intelligence/{symbol}")
+def advanced_stock_intelligence(symbol: str):
+    """V3 calibrated research, out-of-sample validation, and paper backtest."""
+    try:
+        return analyze_stock_v3(normalize_symbol(symbol))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail="Advanced intelligence is temporarily unavailable; no trade signal was issued.")
 
 @app.get("/predict/{symbol}")
 def predict(symbol: str):
