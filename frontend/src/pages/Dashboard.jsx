@@ -46,63 +46,63 @@ function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState(null);
 
 
-  // Load core dashboard data. Optional premium endpoints are intentionally
-  // excluded here until their UI panels are mounted.
+  // Load fast dashboard essentials first; expensive ML endpoints run in background.
   const loadDashboard = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-
-      const [
-        stockRes,
-        quoteRes,
-        performanceRes,
-        predictionRes,
-        detailsRes,
-        positionsRes,
-        chartRes,
-        historyRes,
-        userRes
-      ] = await Promise.all([
+      const results = await Promise.allSettled([
         API.get(`/stock/${symbol}`),
         API.get(`/quote/${symbol}`),
-        API.get(`/performance/${symbol}`),
-        API.get(`/predict/${symbol}`),
         API.get("/portfolio/details"),
         API.get("/portfolio/positions"),
         API.get("/portfolio/chart"),
         API.get("/history"),
         API.get("/me")
       ]);
-
-      setStockData(stockRes.data?.ohlc || []);
-      setStockError(stockRes.data?.error || "");
-      setQuote(quoteRes.data?.error ? null : quoteRes.data);
-      setPerformance(performanceRes.data || null);
-      setPrediction(predictionRes.data || null);
-      setDetails(detailsRes.data || null);
-
-      setPositions(
-        Array.isArray(positionsRes.data) ? positionsRes.data : []
-      );
-      setChartData(
-        Array.isArray(chartRes.data) ? chartRes.data : []
-      );
-      setHistory(
-        Array.isArray(historyRes.data) ? historyRes.data : []
-      );
-
-      if (userRes.data?.username) {
-        setUsername(userRes.data.username);
-      }
+      const value = (index) => results[index].status === "fulfilled" ? results[index].value.data : null;
+      const stock = value(0);
+      const quoteData = value(1);
+      setStockData(stock?.ohlc || []);
+      setStockError(stock?.error || (results[0].status === "rejected" ? "Historical prices could not be loaded." : ""));
+      setQuote(quoteData?.error ? null : quoteData);
+      setDetails(value(2));
+      setPositions(Array.isArray(value(3)) ? value(3) : []);
+      setChartData(Array.isArray(value(4)) ? value(4) : []);
+      setHistory(Array.isArray(value(5)) ? value(5) : []);
+      const user = value(6);
+      if (user?.username) setUsername(user.username);
       setLastUpdated(new Date());
-
     } catch (error) {
-      console.log("DASHBOARD ERROR:", error);
+      console.error("DASHBOARD ERROR:", error);
     } finally {
       setLoading(false);
     }
+
+    // Do not make the first paint wait for model training/evaluation.
+    const research = await Promise.allSettled([
+      API.get(`/performance/${symbol}`),
+      API.get(`/predict/${symbol}`)
+    ]);
+    if (research[0].status === "fulfilled") setPerformance(research[0].value.data);
+    else setPerformance({ error: "Model evaluation is temporarily unavailable." });
+    if (research[1].status === "fulfilled") setPrediction(research[1].value.data);
+    else setPrediction({ signal: "NO DATA", note: "Forecast is temporarily unavailable." });
   };
 
+  // After a paper order, update only account data. Never reload charts or retrain models.
+  const refreshPortfolio = async () => {
+    const results = await Promise.allSettled([
+      API.get("/portfolio/details"),
+      API.get("/portfolio/positions"),
+      API.get("/portfolio/chart"),
+      API.get("/history")
+    ]);
+    if (results[0].status === "fulfilled") setDetails(results[0].value.data);
+    if (results[1].status === "fulfilled") setPositions(Array.isArray(results[1].value.data) ? results[1].value.data : []);
+    if (results[2].status === "fulfilled") setChartData(Array.isArray(results[2].value.data) ? results[2].value.data : []);
+    if (results[3].status === "fulfilled") setHistory(Array.isArray(results[3].value.data) ? results[3].value.data : []);
+    setLastUpdated(new Date());
+  };
 
   // Load optional research modules independently so one provider outage
   // cannot block the core quote, chart, portfolio or prediction dashboard.
@@ -463,7 +463,7 @@ function Dashboard() {
       <div style={{ marginTop: "20px" }}>
         <TradePanel
           symbol={symbol}
-          refresh={refreshDashboard}
+          refresh={refreshPortfolio}
           livePrice={livePrice}
         />
       </div>
