@@ -1,3 +1,6 @@
+import threading
+import time
+
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -269,28 +272,79 @@ def _development_data(splits):
     )
 
 
-def predict_stock(symbol):
-    try:
+# Both dashboard research endpoints request the same symbol at once. Cache the
+# expensive history + chronological model-selection work and serialize the first
+# build per symbol so concurrent requests do not train duplicate CV models.
+_RESEARCH_CACHE_TTL_SECONDS = 15 * 60
+_RESEARCH_CACHE_MAX_SYMBOLS = 16
+_research_cache = {}
+_research_locks = {}
+_research_cache_guard = threading.Lock()
+
+
+def _get_research_context(symbol):
+    now = time.monotonic()
+    with _research_cache_guard:
+        cached = _research_cache.get(symbol)
+        if cached and cached[0] > now:
+            return cached[1]
+        lock = _research_locks.setdefault(symbol, threading.Lock())
+
+    with lock:
+        now = time.monotonic()
+        with _research_cache_guard:
+            cached = _research_cache.get(symbol)
+            if cached and cached[0] > now:
+                return cached[1]
+
         frame = _history(symbol, "3y")
         if frame is None:
-            return {
-                "current_price": None,
-                "predicted_price": None,
-                "signal": "NO DATA",
-            }
-
+            return None
         splits = _prepare_splits(frame)
         if splits is None:
-            return {
-                "current_price": None,
-                "predicted_price": None,
-                "signal": "NO DATA",
-                "note": "At least 100 clean historical feature rows are required.",
-            }
+            return None
 
         development_x, development_y = _development_data(splits)
         model_name, cv_scores = _select_model(development_x, development_y)
-        selected_metrics = cv_scores[model_name]
+        context = {
+            "frame": frame,
+            "splits": splits,
+            "model_name": model_name,
+            "cv_scores": cv_scores,
+            "selected_metrics": cv_scores[model_name],
+        }
+
+        with _research_cache_guard:
+            expired = [
+                key for key, value in _research_cache.items()
+                if value[0] <= now
+            ]
+            for key in expired:
+                _research_cache.pop(key, None)
+            if len(_research_cache) >= _RESEARCH_CACHE_MAX_SYMBOLS:
+                oldest = min(_research_cache, key=lambda key: _research_cache[key][0])
+                _research_cache.pop(oldest, None)
+            _research_cache[symbol] = (
+                time.monotonic() + _RESEARCH_CACHE_TTL_SECONDS,
+                context,
+            )
+        return context
+
+
+def predict_stock(symbol):
+    try:
+        context = _get_research_context(symbol)
+        if context is None:
+            return {
+                "current_price": None,
+                "predicted_price": None,
+                "signal": "NO DATA",
+                "note": "Historical data is unavailable or does not contain enough clean rows.",
+            }
+
+        frame = context["frame"]
+        model_name = context["model_name"]
+        selected_metrics = context["selected_metrics"]
 
         all_x, all_y = _dataset(frame)
         latest_feature_frame = _features(frame).dropna()
@@ -351,18 +405,16 @@ def predict_stock(symbol):
 def evaluate_prediction(symbol):
     """Evaluate the selected model on a final chronological holdout block."""
     try:
-        frame = _history(symbol, "3y")
-        if frame is None:
-            return {"error": "Unable to load historical data for this symbol"}
+        context = _get_research_context(symbol)
+        if context is None:
+            return {"error": "Historical data is unavailable or there are not enough clean rows to evaluate this symbol"}
 
-        splits = _prepare_splits(frame)
-        if splits is None:
-            return {"error": "Not enough clean historical data to evaluate this symbol"}
-
-        x_train, y_train, x_valid, y_valid, x_test, y_test = splits
-        development_x, development_y = _development_data(splits)
-        model_name, cv_scores = _select_model(development_x, development_y)
-        selected_metrics = cv_scores[model_name]
+        frame = context["frame"]
+        _, _, _, _, x_test, y_test = context["splits"]
+        model_name = context["model_name"]
+        cv_scores = context["cv_scores"]
+        selected_metrics = context["selected_metrics"]
+        development_x, development_y = _development_data(context["splits"])
 
         model = MODEL_FACTORIES[model_name]()
         model.fit(development_x, development_y)
