@@ -13,12 +13,10 @@ function PredictionPerformance({ data, loading = false }) {
   }
   if (!data || data.error || !Array.isArray(data.chart) || !data.chart.length) {
     return (
-      <section style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, padding: 20, marginTop: 22, color: "#cbd5e1" }}>
-        <h2 style={{ marginTop: 0 }}>Model validation</h2>
-        {data?.error || "Historical evaluation is unavailable for this symbol right now."}
-        <p style={{ color: "#94a3b8", fontSize: 12, marginBottom: 0 }}>
-          Check backend data availability, then use Refresh.
-        </p>
+      <section className="research-panel">
+        <div className="research-panel__top"><div><span className="eyebrow">MODEL TRANSPARENCY</span><h2>Model validation</h2></div><span className="research-status research-status--warning">Unavailable</span></div>
+        <p className="research-muted">{data?.error || "Historical evaluation is unavailable for this symbol right now."}</p>
+        <p className="research-disclaimer">No validation score is shown rather than displaying an estimate without holdout evidence.</p>
       </section>
     );
   }
