@@ -226,13 +226,27 @@ def _select_model(x_train, y_train):
         mean_directional = float(np.mean(fold_directional))
         mean_balanced = float(np.mean(fold_balanced))
         mean_mae = float(np.mean(fold_mae))
-        # Prioritize balanced direction skill; use ordinary direction and MAE
-        # as secondary signals so a majority-class model is not rewarded.
+        # A zero-return forecast is a transparent, trading-relevant baseline.
+        # Compare each model against it on exactly the same chronological folds.
+        baseline_mae = float(
+            np.mean([
+                np.mean(np.abs(y_train.iloc[valid_idx].to_numpy())) * 100
+                for _, valid_idx in splitter.split(x_train)
+            ])
+        )
+        mae_skill = (
+            (baseline_mae - mean_mae) / baseline_mae * 100
+            if baseline_mae > 0 else 0.0
+        )
+        # Prioritize balanced direction skill; retain error-vs-baseline
+        # diagnostics so a directional score cannot hide poor return forecasts.
         selection_score = 0.7 * mean_balanced + 0.3 * mean_directional
         scores[name] = {
             "directional_accuracy_pct": round(mean_directional, 3),
             "balanced_directional_accuracy_pct": round(mean_balanced, 3),
             "mae_return_pct": round(mean_mae, 4),
+            "zero_return_baseline_mae_pct": round(baseline_mae, 4),
+            "mae_skill_vs_zero_baseline_pct": round(mae_skill, 3),
             "selection_score": round(selection_score, 3),
         }
 
@@ -434,6 +448,27 @@ def evaluate_prediction(symbol):
             np.mean(np.abs((actual_closes - predicted_closes) / actual_closes)) * 100
         )
 
+        # Holdout comparison against a no-change (zero-return) forecast.
+        # This baseline is evaluated on the same untouched chronological rows.
+        model_return_mae_pct = float(
+            np.mean(np.abs(actual_returns - predicted_returns)) * 100
+        )
+        model_return_rmse_pct = float(
+            np.sqrt(np.mean((actual_returns - predicted_returns) ** 2)) * 100
+        )
+        baseline_return_mae_pct = float(np.mean(np.abs(actual_returns)) * 100)
+        baseline_return_rmse_pct = float(
+            np.sqrt(np.mean(actual_returns ** 2)) * 100
+        )
+        return_mae_skill_pct = (
+            (baseline_return_mae_pct - model_return_mae_pct)
+            / baseline_return_mae_pct * 100
+            if baseline_return_mae_pct > 0 else 0.0
+        )
+        baseline_directional, baseline_balanced = _direction_metrics(
+            actual_returns, np.zeros_like(actual_returns)
+        )
+
         signal_threshold_pct = max(0.10, selected_metrics["mae_return_pct"])
         signal_threshold = signal_threshold_pct / 100
         signal_mask = np.abs(predicted_returns) > signal_threshold
@@ -468,6 +503,18 @@ def evaluate_prediction(symbol):
             "mae": round(mae, 2),
             "rmse": round(rmse, 2),
             "mape": round(mape, 2),
+            "holdout_return_mae_pct": round(model_return_mae_pct, 4),
+            "holdout_return_rmse_pct": round(model_return_rmse_pct, 4),
+            "zero_return_baseline_mae_pct": round(baseline_return_mae_pct, 4),
+            "zero_return_baseline_rmse_pct": round(baseline_return_rmse_pct, 4),
+            "mae_skill_vs_zero_baseline_pct": round(return_mae_skill_pct, 3),
+            "zero_return_baseline_directional_accuracy_pct": round(
+                baseline_directional, 2
+            ),
+            "zero_return_baseline_balanced_accuracy_pct": round(
+                baseline_balanced, 2
+            ),
+            "model_beats_zero_return_baseline": bool(return_mae_skill_pct > 0),
             "validation_mae_return_pct": selected_metrics["mae_return_pct"],
             "validation_directional_accuracy_pct": selected_metrics[
                 "directional_accuracy_pct"
@@ -489,7 +536,9 @@ def evaluate_prediction(symbol):
                 "Final metrics are from a chronological holdout block not used for "
                 "model selection. Signal accuracy is measured only on predictions "
                 "whose expected move exceeds the cross-validated error threshold. "
-                "Historical results do not guarantee future performance."
+                "The zero-return baseline is included as a reference; positive MAE skill "
+                "means lower holdout return error than that baseline. Historical results "
+                "do not guarantee future performance."
             ),
         }
     except Exception as exc:
