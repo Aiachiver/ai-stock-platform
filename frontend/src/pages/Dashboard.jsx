@@ -18,6 +18,7 @@ function Dashboard() {
 
   // Stock chart data
   const [stockData, setStockData] = useState([]);
+  const [stockError, setStockError] = useState("");
 
   // ML prediction
   const [prediction, setPrediction] = useState(null);
@@ -74,8 +75,9 @@ function Dashboard() {
       ]);
 
       setStockData(stockRes.data?.ohlc || []);
+      setStockError(stockRes.data?.error || "");
       setQuote(quoteRes.data?.error ? null : quoteRes.data);
-      setPerformance(performanceRes.data?.error ? null : performanceRes.data);
+      setPerformance(performanceRes.data || null);
       setPrediction(predictionRes.data || null);
       setDetails(detailsRes.data || null);
 
@@ -446,7 +448,7 @@ function Dashboard() {
           boxSizing: "border-box"
         }}
       >
-        <StockChart data={stockData} />
+        <StockChart data={stockData} error={stockError} />
       </div>
 
 

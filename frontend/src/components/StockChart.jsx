@@ -1,7 +1,7 @@
 import React from "react";
 import Chart from "react-apexcharts";
 
-function StockChart({ data }) {
+function StockChart({ data, error }) {
   const validData = Array.isArray(data)
     ? data.filter(item => item && ["open", "high", "low", "close"].every(key => Number.isFinite(Number(item[key]))))
     : [];
@@ -10,7 +10,7 @@ function StockChart({ data }) {
     return (
       <div style={{ background: "#1e293b", color: "#cbd5e1", borderRadius: 14, padding: 24, minHeight: 180 }}>
         <h3 style={{ marginTop: 0 }}>Price chart</h3>
-        Historical price data is temporarily unavailable. Try Refresh in a moment.
+        {error || "Historical price data is temporarily unavailable. Try Refresh in a moment."}
       </div>
     );
   }

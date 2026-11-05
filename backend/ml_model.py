@@ -12,28 +12,28 @@ from sklearn.model_selection import TimeSeriesSplit
 
 MODEL_FACTORIES = {
     "Extra Trees Regressor": lambda: ExtraTreesRegressor(
-        n_estimators=350,
+        n_estimators=160,
         min_samples_leaf=3,
         max_features=0.8,
         random_state=42,
         n_jobs=-1,
     ),
     "Random Forest Regressor": lambda: RandomForestRegressor(
-        n_estimators=350,
+        n_estimators=160,
         min_samples_leaf=3,
         max_features=0.8,
         random_state=42,
         n_jobs=-1,
     ),
     "Gradient Boosting Regressor": lambda: GradientBoostingRegressor(
-        n_estimators=220,
+        n_estimators=140,
         learning_rate=0.03,
         max_depth=2,
         loss="huber",
         random_state=42,
     ),
     "Histogram Gradient Boosting": lambda: HistGradientBoostingRegressor(
-        max_iter=180,
+        max_iter=120,
         learning_rate=0.04,
         max_leaf_nodes=15,
         l2_regularization=1.0,
@@ -43,15 +43,46 @@ MODEL_FACTORIES = {
 
 
 def _history(symbol, period="3y"):
-    frame = yf.Ticker(symbol).history(
-        period=period, interval="1d", auto_adjust=True
+    """Load clean daily OHLCV history with a second yfinance retrieval path."""
+    attempts = (
+        lambda: yf.Ticker(symbol).history(
+            period=period, interval="1d", auto_adjust=True, raise_errors=True
+        ),
+        lambda: yf.download(
+            symbol, period=period, interval="1d", auto_adjust=True,
+            progress=False, threads=False, group_by="column"
+        ),
     )
-    if getattr(frame.columns, "nlevels", 1) > 1:
-        frame.columns = frame.columns.get_level_values(0)
     required = {"Open", "High", "Low", "Close", "Volume"}
-    if frame.empty or not required.issubset(frame.columns):
-        return None
-    return frame.dropna(subset=["Open", "High", "Low", "Close"])
+    for attempt in attempts:
+        try:
+            frame = attempt()
+            if frame is None or frame.empty:
+                continue
+            if getattr(frame.columns, "nlevels", 1) > 1:
+                levels = [
+                    frame.columns.get_level_values(level)
+                    for level in range(frame.columns.nlevels)
+                ]
+                matching = next(
+                    (level for level in levels if required.issubset(set(level))),
+                    None,
+                )
+                if matching is None:
+                    continue
+                frame.columns = matching
+            if not required.issubset(frame.columns):
+                continue
+            frame = frame.copy()
+            for column in required:
+                frame[column] = pd.to_numeric(frame[column], errors="coerce")
+            frame = frame.dropna(subset=["Open", "High", "Low", "Close"])
+            frame["Volume"] = frame["Volume"].fillna(0)
+            if len(frame) >= 100:
+                return frame
+        except Exception as exc:
+            print(f"MODEL HISTORY ATTEMPT FAILED ({symbol}):", exc)
+    return None
 
 
 def _features(frame):
@@ -121,9 +152,13 @@ def _features(frame):
     )
 
     # Volume context.
-    features["volume_change"] = volume.pct_change()
-    features["volume_ratio_20"] = volume / volume.rolling(20).mean()
-    features["volume_return_corr_20"] = returns.rolling(20).corr(volume.pct_change())
+    volume_change = volume.pct_change().replace([np.inf, -np.inf], np.nan)
+    volume_ratio = volume / volume.rolling(20).mean().replace(0, np.nan)
+    volume_corr = returns.rolling(20).corr(volume_change)
+    # Missing or constant volume should not invalidate otherwise usable OHLC rows.
+    features["volume_change"] = volume_change.fillna(0)
+    features["volume_ratio_20"] = volume_ratio.replace([np.inf, -np.inf], np.nan).fillna(1)
+    features["volume_return_corr_20"] = volume_corr.fillna(0)
 
     return features.replace([np.inf, -np.inf], np.nan)
 
@@ -159,7 +194,7 @@ def _select_model(x_train, y_train):
         raise ValueError("Not enough rows for chronological model selection")
 
     test_size = max(10, len(x_train) // 10)
-    splitter = TimeSeriesSplit(n_splits=3, test_size=test_size)
+    splitter = TimeSeriesSplit(n_splits=2, test_size=test_size)
     scores = {}
 
     for name, factory in MODEL_FACTORIES.items():
@@ -258,7 +293,11 @@ def predict_stock(symbol):
         selected_metrics = cv_scores[model_name]
 
         all_x, all_y = _dataset(frame)
-        latest_features = _features(frame).dropna().iloc[[-1]]
+        latest_feature_frame = _features(frame).dropna()
+        if latest_feature_frame.empty:
+            return {"current_price": None, "predicted_price": None, "signal": "NO DATA",
+                    "note": "Latest indicator rows are incomplete for this symbol."}
+        latest_features = latest_feature_frame.iloc[[-1]]
         model = MODEL_FACTORIES[model_name]()
         model.fit(all_x, all_y)
 
