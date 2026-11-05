@@ -11,11 +11,10 @@ import warnings
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier, RandomForestClassifier
+from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, balanced_accuracy_score, brier_score_loss, precision_score
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, brier_score_loss
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -113,10 +112,48 @@ def _models():
     }
 
 
+class _TemporalCalibratedModel:
+    """Platt calibration with a chronological calibration tail (no shuffled CV)."""
+
+    def __init__(self, estimator):
+        self.estimator = estimator
+        self.calibrator = None
+        self.classes_ = np.array([0, 1])
+
+    @staticmethod
+    def _logit(probability):
+        p = np.clip(np.asarray(probability, dtype=float), 1e-6, 1 - 1e-6)
+        return np.log(p / (1 - p)).reshape(-1, 1)
+
+    def fit(self, x, y):
+        split = int(len(x) * 0.80)
+        if split < 100 or len(x) - split < 30:
+            raise ValueError("Insufficient rows for chronological probability calibration")
+        x_fit, y_fit = x.iloc[:split], y.iloc[:split]
+        x_cal, y_cal = x.iloc[split:], y.iloc[split:]
+        if y_fit.nunique() < 2 or y_cal.nunique() < 2:
+            raise ValueError("Both classes are required in fit and calibration windows")
+
+        calibration_estimator = clone(self.estimator)
+        calibration_estimator.fit(x_fit, y_fit)
+        raw_calibration = calibration_estimator.predict_proba(x_cal)[:, 1]
+        self.calibrator = LogisticRegression(C=1.0, max_iter=1000)
+        self.calibrator.fit(self._logit(raw_calibration), y_cal)
+
+        # Refit the forecasting estimator on all labels available at this cutoff.
+        self.estimator_ = clone(self.estimator)
+        self.estimator_.fit(x, y)
+        return self
+
+    def predict_proba(self, x):
+        raw = self.estimator_.predict_proba(x)[:, 1]
+        up = self.calibrator.predict_proba(self._logit(raw))[:, 1]
+        return np.column_stack([1 - up, up])
+
+
 def _calibrated(model):
-    # Expanding chronological folds; never shuffle time-series observations.
-    return CalibratedClassifierCV(estimator=model, method="sigmoid",
-                                  cv=TimeSeriesSplit(n_splits=3))
+    # Calibration uses an earlier fit window and a later held-out calibration tail.
+    return _TemporalCalibratedModel(model)
 
 
 def _regime(stock: pd.DataFrame, market_returns: pd.Series) -> str:
@@ -189,12 +226,18 @@ def analyze_stock_v3(symbol: str) -> dict:
     else:
         selective_accuracy = None
 
-    # Long-only paper strategy: enter only on calibrated high-confidence UP calls.
+    # Long-only paper strategy. Charge one side of costs only when position changes.
     buy_mask = ensemble_test >= CONFIDENCE_THRESHOLD
-    daily_cost = (2 * TRADING_COST_BPS) / 10000
-    strategy_returns = np.where(buy_mask, test_returns.to_numpy() - daily_cost, 0.0)
+    positions = buy_mask.astype(float)
+    previous_positions = np.r_[0.0, positions[:-1]]
+    entry_exit_turnover = np.abs(positions - previous_positions)
+    # Close any remaining position at the end of the test window.
+    if len(entry_exit_turnover):
+        entry_exit_turnover[-1] += positions[-1]
+    transaction_costs = entry_exit_turnover * (TRADING_COST_BPS / 10000)
+    strategy_returns = positions * test_returns.to_numpy() - transaction_costs
     equity = np.cumprod(1 + strategy_returns)
-    peak = np.maximum.accumulate(equity)
+    peak = np.maximum.accumulate(np.r_[1.0, equity])[1:]
     drawdown = (equity / peak - 1) * 100
     total_return = (equity[-1] - 1) * 100 if len(equity) else 0.0
     buy_hold = (np.prod(1 + test_returns.to_numpy()) - 1) * 100
@@ -219,7 +262,7 @@ def analyze_stock_v3(symbol: str) -> dict:
     market_series = market_returns.reindex(stock.index).dropna()
     return {
         "symbol": symbol,
-        "engine": "TradeSight AI V3",
+        "engine": "TradeSight AI V3.1",
         "forecast_horizon": "Next trading session",
         "data_period": "Up to 10 years, subject to provider availability",
         "observations": int(len(x)),
@@ -242,7 +285,7 @@ def analyze_stock_v3(symbol: str) -> dict:
         },
         "paper_backtest": {
             "strategy": "Long-only; buy when calibrated UP probability >= 60%, otherwise cash",
-            "round_trip_transaction_cost_bps": 2 * TRADING_COST_BPS,
+            "transaction_cost_bps_per_side": TRADING_COST_BPS,
             "strategy_total_return_pct": round(float(total_return), 2),
             "buy_and_hold_return_pct": round(float(buy_hold), 2),
             "max_drawdown_pct": round(float(np.min(drawdown)), 2) if len(drawdown) else 0.0,
