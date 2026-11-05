@@ -6,7 +6,10 @@ function PredictionPerformance({ data }) {
     return (
       <section style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, padding: 20, marginTop: 22, color: "#cbd5e1" }}>
         <h2 style={{ marginTop: 0 }}>Model validation</h2>
-        Historical evaluation is unavailable for this symbol right now.
+        {data?.error || "Historical evaluation is unavailable for this symbol right now."}
+        <p style={{ color: "#94a3b8", fontSize: 12, marginBottom: 0 }}>
+          Check backend data availability, then use Refresh.
+        </p>
       </section>
     );
   }
