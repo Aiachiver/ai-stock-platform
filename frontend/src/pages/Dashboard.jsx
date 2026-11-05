@@ -7,15 +7,9 @@ import PredictionBox from "../components/PredictionBox";
 import PortfolioCharts from "../components/PortfolioCharts";
 import StockOverview from "../components/StockOverview";
 import PredictionPerformance from "../components/PredictionPerformance";
-import PremiumAnalytics from "../components/PremiumAnalytics";
-import PortfolioRisk from "../components/PortfolioRisk";
 
 
 function Dashboard() {
-
-  // =====================================================
-  // STATES
-  // =====================================================
 
   // Selected stock
   const [symbol, setSymbol] = useState("AAPL");
@@ -26,45 +20,31 @@ function Dashboard() {
   // ML prediction
   const [prediction, setPrediction] = useState(null);
 
-  // Current live stock price
+  // Current live stock price and market quote
   const [livePrice, setLivePrice] = useState(null);
   const [quote, setQuote] = useState(null);
   const [performance, setPerformance] = useState(null);
-  const [insights, setInsights] = useState(null);
-  const [backtest, setBacktest] = useState(null);
-  const [risk, setRisk] = useState(null);
 
   // Portfolio details
   const [details, setDetails] = useState(null);
-
-  // Current open positions
   const [positions, setPositions] = useState([]);
-
-  // Trade history
   const [history, setHistory] = useState([]);
-
-  // Portfolio chart data
   const [chartData, setChartData] = useState([]);
 
   // Loading state
   const [loading, setLoading] = useState(false);
 
-  // Logged-in username
+  // Logged-in username and update time
   const [username, setUsername] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
 
 
-  // =====================================================
-  // LOAD DASHBOARD DATA
-  // =====================================================
-
+  // Load core dashboard data. Optional premium endpoints are intentionally
+  // excluded here until their UI panels are mounted.
   const loadDashboard = async () => {
-
     try {
-
       setLoading(true);
 
-      // Load all dashboard data together
       const [
         stockRes,
         quoteRes,
@@ -74,233 +54,109 @@ function Dashboard() {
         positionsRes,
         chartRes,
         historyRes,
-        userRes,
-        insightsRes,
-        backtestRes,
-        riskRes
+        userRes
       ] = await Promise.all([
-
-        // Stock chart
         API.get(`/stock/${symbol}`),
-
-        // Market overview and fundamentals
         API.get(`/quote/${symbol}`),
-
-        // Historical prediction evaluation
         API.get(`/performance/${symbol}`),
-
-        // ML prediction
         API.get(`/predict/${symbol}`),
-
-        // Portfolio details
         API.get("/portfolio/details"),
-
-        // Current positions
         API.get("/portfolio/positions"),
-
-        // Portfolio charts
         API.get("/portfolio/chart"),
-
-        // Trade history
         API.get("/history"),
-
-        // Logged-in user
-        API.get("/me"),
-
-        // Optional premium research endpoints should not block the core dashboard
-        API.get(`/insights/${symbol}`).catch(() => ({ data: null })),
-        API.get(`/backtest/${symbol}`).catch(() => ({ data: null })),
-        API.get("/portfolio/risk").catch(() => ({ data: null }))
+        API.get("/me")
       ]);
 
-
-      // =================================================
-      // SAVE API DATA INTO STATES
-      // =================================================
-
-      setStockData(
-        stockRes.data?.ohlc || []
-      );
-
+      setStockData(stockRes.data?.ohlc || []);
       setQuote(quoteRes.data?.error ? null : quoteRes.data);
       setPerformance(performanceRes.data?.error ? null : performanceRes.data);
-      setInsights(insightsRes.data?.error ? null : insightsRes.data);
-      setBacktest(backtestRes.data?.error ? null : backtestRes.data);
-      setRisk(riskRes.data?.error ? null : riskRes.data);
+      setPrediction(predictionRes.data || null);
+      setDetails(detailsRes.data || null);
 
-      setPrediction(
-        predictionRes.data || null
-      );
-
-      setDetails(
-        detailsRes.data || null
-      );
-
-      // Make sure positions is ALWAYS an array
       setPositions(
-        Array.isArray(positionsRes.data)
-          ? positionsRes.data
-          : []
+        Array.isArray(positionsRes.data) ? positionsRes.data : []
       );
-
-      // Make sure chart data is ALWAYS an array
       setChartData(
-        Array.isArray(chartRes.data)
-          ? chartRes.data
-          : []
+        Array.isArray(chartRes.data) ? chartRes.data : []
       );
-
-      // Make sure history is ALWAYS an array
       setHistory(
-        Array.isArray(historyRes.data)
-          ? historyRes.data
-          : []
+        Array.isArray(historyRes.data) ? historyRes.data : []
       );
 
-      // Logged-in username
       if (userRes.data?.username) {
         setUsername(userRes.data.username);
       }
       setLastUpdated(new Date());
 
     } catch (error) {
-
-      console.log(
-        "DASHBOARD ERROR:",
-        error
-      );
-
+      console.log("DASHBOARD ERROR:", error);
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
 
-  // =====================================================
-  // LOAD DATA WHEN STOCK CHANGES
-  // =====================================================
-
+  // Reload when selected stock changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-
     loadDashboard();
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol]);
 
 
-  // =====================================================
-  // WEBSOCKET - LIVE PRICE
-  // =====================================================
-
+  // WebSocket live price.
   useEffect(() => {
-
     let ws;
 
     try {
-
       const wsBaseUrl = API_BASE_URL
         .replace(/^https:\/\//, "wss://")
         .replace(/^http:\/\//, "ws://");
 
-      ws = new WebSocket(
-        `${wsBaseUrl}/ws/${symbol}`
-      );
+      ws = new WebSocket(`${wsBaseUrl}/ws/${symbol}`);
 
-
-      // When live price arrives
       ws.onmessage = (event) => {
-
-        const data =
-          JSON.parse(event.data);
-
+        const data = JSON.parse(event.data);
         if (data.price) {
-
-          setLivePrice(
-            data.price
-          );
-
+          setLivePrice(data.price);
         }
-
       };
 
-
-      // WebSocket error
       ws.onerror = (error) => {
-
-        console.log(
-          "WEBSOCKET ERROR:",
-          error
-        );
-
+        console.log("WEBSOCKET ERROR:", error);
       };
 
-
-      // WebSocket closed
       ws.onclose = () => {
-
-        console.log(
-          "WebSocket closed"
-        );
-
+        console.log("WebSocket closed");
       };
 
     } catch (error) {
-
-      console.log(
-        "WEBSOCKET CONNECTION ERROR:",
-        error
-      );
-
+      console.log("WEBSOCKET CONNECTION ERROR:", error);
     }
 
-
-    // Close WebSocket when symbol changes
     return () => {
-
       if (ws) {
-
         ws.close();
-
       }
-
     };
-
   }, [symbol]);
 
 
-  // =====================================================
-  // LOGOUT
-  // =====================================================
-
+  // Logout
   const logout = () => {
-
-    const confirmLogout =
-      window.confirm(
-        "Are you sure you want to logout?"
-      );
-
-    if (!confirmLogout) {
-      return;
-    }
+    const confirmLogout = window.confirm("Are you sure you want to logout?");
+    if (!confirmLogout) return;
 
     localStorage.removeItem("token");
-
     window.location.reload();
-
   };
 
 
-  // =====================================================
-  // REFRESH DASHBOARD
-  // =====================================================
-
+  // Refresh dashboard
   const refreshDashboard = () => {
     loadDashboard();
   };
+
 
   // Portfolio percentage helpers
   const invested = Number(details?.invested || 0);
@@ -309,47 +165,25 @@ function Dashboard() {
   const accountValue = Number(details?.balance || 0) + Number(details?.current || 0);
 
 
-  // =====================================================
-  // COMMON CARD STYLE
-  // =====================================================
-
+  // Common card style
   const cardStyle = {
-
     background: "#1e293b",
-
     padding: "20px",
-
     borderRadius: "12px",
-
     textAlign: "center",
-
-    boxShadow:
-      "0 8px 20px rgba(0,0,0,0.15)"
-
+    boxShadow: "0 8px 20px rgba(0,0,0,0.15)"
   };
 
 
-  // =====================================================
-  // PROFIT COLOR
-  // =====================================================
-
+  // Profit color
   const getProfitColor = (value) => {
-
-    return Number(value) >= 0
-      ? "#22c55e"
-      : "#ef4444";
-
+    return Number(value) >= 0 ? "#22c55e" : "#ef4444";
   };
 
 
-  // =====================================================
-  // LOADING SCREEN
-  // =====================================================
-
+  // Loading screen
   if (loading && !details) {
-
     return (
-
       <div
         style={{
           minHeight: "100vh",
@@ -361,22 +195,14 @@ function Dashboard() {
           fontSize: "22px"
         }}
       >
-
         Loading Dashboard...
-
       </div>
-
     );
-
   }
 
 
-  // =====================================================
-  // MAIN DASHBOARD
-  // =====================================================
-
+  // Main dashboard
   return (
-
     <div
       style={{
         minHeight: "100vh",
@@ -387,12 +213,7 @@ function Dashboard() {
       }}
     >
 
-
-      {/* =================================================
-          HEADER
-          Username + Logout
-      ================================================= */}
-
+      {/* HEADER */}
       <div
         style={{
           display: "flex",
@@ -403,28 +224,9 @@ function Dashboard() {
           marginBottom: "25px"
         }}
       >
+        <h1 style={{ margin: 0 }}>📈 AI Trading Dashboard</h1>
 
-        {/* Main heading */}
-
-        <h1
-          style={{
-            margin: 0
-          }}
-        >
-          📈 AI Trading Dashboard
-        </h1>
-
-
-        {/* User information + logout */}
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px"
-          }}
-        >
-
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div
             style={{
               background: "#1e293b",
@@ -435,7 +237,6 @@ function Dashboard() {
           >
             👤 {username}
           </div>
-
 
           <button
             onClick={logout}
@@ -451,17 +252,11 @@ function Dashboard() {
           >
             Logout
           </button>
-
         </div>
-
       </div>
 
 
-
-      {/* =================================================
-          STOCK SELECTOR + LIVE PRICE
-      ================================================= */}
-
+      {/* STOCK SELECTOR + LIVE PRICE */}
       <div
         style={{
           display: "flex",
@@ -472,14 +267,9 @@ function Dashboard() {
           marginBottom: "25px"
         }}
       >
-
-        {/* Stock selector */}
-
         <select
           value={symbol}
-          onChange={(e) =>
-            setSymbol(e.target.value)
-          }
+          onChange={(e) => setSymbol(e.target.value)}
           style={{
             padding: "12px",
             borderRadius: "8px",
@@ -488,7 +278,6 @@ function Dashboard() {
             outline: "none"
           }}
         >
-
           <option value="AAPL">AAPL</option>
           <option value="TSLA">TSLA</option>
           <option value="GOOGL">GOOGL</option>
@@ -499,11 +288,7 @@ function Dashboard() {
           <option value="NFLX">NFLX</option>
           <option value="JPM">JPM</option>
           <option value="WMT">WMT</option>
-
         </select>
-
-
-        {/* Live price */}
 
         <div
           style={{
@@ -512,17 +297,8 @@ function Dashboard() {
             borderRadius: "10px"
           }}
         >
-
-          💰 Live Price:
-
-          {" "}
-
-          <b>
-            {livePrice
-              ? `$${livePrice}`
-              : "Loading..."}
-          </b>
-
+          💰 Live Price:{" "}
+          <b>{livePrice ? `$${livePrice}` : "Loading..."}</b>
         </div>
 
         <button
@@ -540,88 +316,47 @@ function Dashboard() {
         >
           {loading ? "Refreshing..." : "↻ Refresh"}
         </button>
-
       </div>
-
 
 
       <StockOverview quote={quote} livePrice={livePrice} />
 
-      {/* =================================================
-          PORTFOLIO SUMMARY
-      ================================================= */}
 
+      {/* PORTFOLIO SUMMARY */}
       {details && (
-
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(180px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
             gap: "15px",
             marginBottom: "25px"
           }}
         >
-
-
-          {/* Balance */}
-
           <div style={cardStyle}>
-
             <h3>💰 Balance</h3>
-
-            <h2>
-              ${details.balance}
-            </h2>
-
+            <h2>${details.balance}</h2>
           </div>
 
-
-          {/* Holdings */}
-
           <div style={cardStyle}>
-
             <h3>📦 Holdings</h3>
-
-            <h2>
-              {details.holdings}
-            </h2>
-
+            <h2>{details.holdings}</h2>
           </div>
 
-
-          {/* Invested */}
-
           <div style={cardStyle}>
-
             <h3>💵 Invested</h3>
-
-            <h2>
-              ${details.invested}
-            </h2>
-
+            <h2>${details.invested}</h2>
           </div>
-
-
-          {/* Current value */}
 
           <div style={cardStyle}>
-
             <h3>📈 Current Value</h3>
-
-            <h2>
-              ${details.current}
-            </h2>
-
+            <h2>${details.current}</h2>
           </div>
 
-          {/* Account value */}
           <div style={cardStyle}>
             <h3>🏦 Account Value</h3>
             <h2>${accountValue.toFixed(2)}</h2>
           </div>
 
-          {/* Total P/L percentage */}
           <div style={cardStyle}>
             <h3>Total P/L %</h3>
             <h2 style={{ color: getProfitColor(totalProfitPercent) }}>
@@ -629,69 +364,29 @@ function Dashboard() {
             </h2>
           </div>
 
-
-          {/* Realized profit */}
-
           <div style={cardStyle}>
-
             <h3>Realized P/L</h3>
-
-            <h2
-              style={{
-                color:
-                  getProfitColor(
-                    details.realized_profit
-                  )
-              }}
-            >
+            <h2 style={{ color: getProfitColor(details.realized_profit) }}>
               ${details.realized_profit}
             </h2>
-
           </div>
 
-
-          {/* Unrealized profit */}
-
           <div style={cardStyle}>
-
             <h3>Unrealized P/L</h3>
-
-            <h2
-              style={{
-                color:
-                  getProfitColor(
-                    details.unrealized_profit
-                  )
-              }}
-            >
+            <h2 style={{ color: getProfitColor(details.unrealized_profit) }}>
               ${details.unrealized_profit}
             </h2>
-
           </div>
-
-
-          {/* Total profit */}
 
           <div style={cardStyle}>
-
             <h3>Total P/L</h3>
-
-            <h2
-              style={{
-                color:
-                  getProfitColor(
-                    details.profit
-                  )
-              }}
-            >
+            <h2 style={{ color: getProfitColor(details.profit) }}>
               ${details.profit}
             </h2>
-
           </div>
-
         </div>
-
       )}
+
 
       {lastUpdated && (
         <p
@@ -705,10 +400,8 @@ function Dashboard() {
         </p>
       )}
 
-      {/* =================================================
-          STOCK CHART
-      ================================================= */}
 
+      {/* STOCK CHART */}
       <div
         style={{
           background: "#1e293b",
@@ -720,68 +413,32 @@ function Dashboard() {
           boxSizing: "border-box"
         }}
       >
-
-        <StockChart
-          data={stockData}
-        />
-
+        <StockChart data={stockData} />
       </div>
 
 
-
-      {/* =================================================
-          ML PREDICTION
-      ================================================= */}
-
-      <div
-        style={{
-          marginTop: "20px"
-        }}
-      >
-
-        <PredictionBox
-          prediction={prediction}
-        />
+      {/* ML PREDICTION */}
+      <div style={{ marginTop: "20px" }}>
+        <PredictionBox prediction={prediction} />
         <PredictionPerformance data={performance} />
-
       </div>
 
 
-
-      {/* =================================================
-          TRADE PANEL
-      ================================================= */}
-
-      <div
-        style={{
-          marginTop: "20px"
-        }}
-      >
-
+      {/* TRADE PANEL */}
+      <div style={{ marginTop: "20px" }}>
         <TradePanel
           symbol={symbol}
           refresh={refreshDashboard}
           livePrice={livePrice}
         />
-
       </div>
 
 
-
-      {/* =================================================
-          PORTFOLIO CHARTS
-      ================================================= */}
-
-      <PortfolioCharts
-        data={chartData}
-      />
+      {/* PORTFOLIO CHARTS */}
+      <PortfolioCharts data={chartData} />
 
 
-
-      {/* =================================================
-          CURRENT POSITIONS
-      ================================================= */}
-
+      {/* CURRENT POSITIONS */}
       <div
         style={{
           background: "#1e293b",
@@ -790,189 +447,82 @@ function Dashboard() {
           marginTop: "25px"
         }}
       >
-
-        <h2>
-          📊 Current Positions
-        </h2>
-
-
-        {/* No positions */}
+        <h2>📊 Current Positions</h2>
 
         {positions.length === 0 ? (
-
-          <p
-            style={{
-              textAlign: "center",
-              color: "#94a3b8"
-            }}
-          >
+          <p style={{ textAlign: "center", color: "#94a3b8" }}>
             No open positions
           </p>
-
         ) : (
-
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(220px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
               gap: "15px"
             }}
           >
+            {positions.map((position, index) => {
+              // Use backend weighted-average P/L percentage.
+              const profitPercent = Number(
+                position.profit_percent ??
+                (
+                  position.average_price > 0
+                    ? ((position.current_price - position.average_price) /
+                      position.average_price) * 100
+                    : 0
+                )
+              );
 
-            {positions.map(
-              (position, index) => {
+              return (
+                <div
+                  key={index}
+                  style={{
+                    background: "#0f172a",
+                    padding: "18px",
+                    borderRadius: "10px"
+                  }}
+                >
+                  <h3>{position.symbol}</h3>
 
-                // Use backend weighted-average P/L percentage
-                const profitPercent = Number(
-                  position.profit_percent ??
-                  (position.average_price > 0
-                    ? ((position.current_price - position.average_price) / position.average_price) * 100
-                    : 0)
-                );
+                  <p>Quantity: <b>{position.quantity}</b></p>
+                  <p>Average Price: <b>${position.average_price}</b></p>
+                  <p>Current Price: <b>${position.current_price}</b></p>
+                  <p>Current Value: <b>${position.current_value}</b></p>
 
-
-                return (
-
-                  <div
-                    key={index}
+                  <p
                     style={{
-                      background: "#0f172a",
-                      padding: "18px",
-                      borderRadius: "10px"
+                      color: getProfitColor(position.profit),
+                      fontWeight: "bold"
                     }}
                   >
+                    P/L: ${position.profit}
+                  </p>
 
-                    <h3>
-                      {position.symbol}
-                    </h3>
-
-
-                    <p>
-                      Quantity:
-
-                      {" "}
-
-                      <b>
-                        {position.quantity}
-                      </b>
-                    </p>
-
-
-                    <p>
-                      Average Price:
-
-                      {" "}
-
-                      <b>
-                        ${position.average_price}
-                      </b>
-                    </p>
-
-
-                    <p>
-                      Current Price:
-
-                      {" "}
-
-                      <b>
-                        ${position.current_price}
-                      </b>
-                    </p>
-
-
-                    <p>
-                      Current Value:
-
-                      {" "}
-
-                      <b>
-                        ${position.current_value}
-                      </b>
-                    </p>
-
-
-                    {/* Profit */}
-
-                    <p
-                      style={{
-                        color:
-                          getProfitColor(
-                            position.profit
-                          ),
-                        fontWeight: "bold"
-                      }}
-                    >
-                      P/L: ${position.profit}
-                    </p>
-
-
-                    {/* Profit percentage */}
-
-                    <p
-                      style={{
-                        color:
-                          getProfitColor(
-                            profitPercent
-                          ),
-                        fontWeight: "bold"
-                      }}
-                    >
-                      P/L Percentage:
-
-                      {" "}
-
-                      {profitPercent.toFixed(2)}%
-
-                    </p>
-
-                  </div>
-
-                );
-
-              }
-            )}
-
+                  <p
+                    style={{
+                      color: getProfitColor(profitPercent),
+                      fontWeight: "bold"
+                    }}
+                  >
+                    P/L Percentage: {profitPercent.toFixed(2)}%
+                  </p>
+                </div>
+              );
+            })}
           </div>
-
         )}
-
       </div>
 
 
-
-      {/* =================================================
-          TRADE HISTORY
-      ================================================= */}
-
-      <div
-        style={{
-          marginTop: "30px"
-        }}
-      >
-
-        <h2
-          style={{
-            textAlign: "center"
-          }}
-        >
-          📜 Trade History
-        </h2>
-
+      {/* TRADE HISTORY */}
+      <div style={{ marginTop: "30px" }}>
+        <h2 style={{ textAlign: "center" }}>📜 Trade History</h2>
 
         {history.length === 0 ? (
-
-          <p
-            style={{
-              textAlign: "center",
-              color: "#94a3b8"
-            }}
-          >
+          <p style={{ textAlign: "center", color: "#94a3b8" }}>
             No trades yet
           </p>
-
         ) : (
-
           <div
             style={{
               width: "95%",
@@ -983,7 +533,6 @@ function Dashboard() {
               overflowX: "auto"
             }}
           >
-
             <table
               style={{
                 width: "100%",
@@ -991,154 +540,44 @@ function Dashboard() {
                 textAlign: "center"
               }}
             >
-
-              {/* Table heading */}
-
               <thead>
-
                 <tr>
-
-                  <th
-                    style={{
-                      padding: "12px"
-                    }}
-                  >
-                    Symbol
-                  </th>
-
-                  <th
-                    style={{
-                      padding: "12px"
-                    }}
-                  >
-                    Type
-                  </th>
-
-                  <th
-                    style={{
-                      padding: "12px"
-                    }}
-                  >
-                    Quantity
-                  </th>
-
-                  <th
-                    style={{
-                      padding: "12px"
-                    }}
-                  >
-                    Price
-                  </th>
-
-                  <th
-                    style={{
-                      padding: "12px"
-                    }}
-                  >
-                    Total
-                  </th>
-
+                  <th style={{ padding: "12px" }}>Symbol</th>
+                  <th style={{ padding: "12px" }}>Type</th>
+                  <th style={{ padding: "12px" }}>Quantity</th>
+                  <th style={{ padding: "12px" }}>Price</th>
+                  <th style={{ padding: "12px" }}>Total</th>
                 </tr>
-
               </thead>
 
-
-              {/* Table body */}
-
               <tbody>
-
-                {history
-                  .slice()
-                  .reverse()
-                  .map((trade) => (
-
-                    <tr
-                      key={trade.id}
+                {history.slice().reverse().map((trade) => (
+                  <tr key={trade.id}>
+                    <td style={{ padding: "12px" }}>{trade.symbol}</td>
+                    <td
+                      style={{
+                        padding: "12px",
+                        color: trade.type === "BUY" ? "#22c55e" : "#ef4444",
+                        fontWeight: "bold"
+                      }}
                     >
-
-                      {/* Symbol */}
-
-                      <td
-                        style={{
-                          padding: "12px"
-                        }}
-                      >
-                        {trade.symbol}
-                      </td>
-
-
-                      {/* BUY / SELL */}
-
-                      <td
-                        style={{
-                          padding: "12px",
-                          color:
-                            trade.type === "BUY"
-                              ? "#22c55e"
-                              : "#ef4444",
-                          fontWeight: "bold"
-                        }}
-                      >
-                        {trade.type}
-                      </td>
-
-
-                      {/* Quantity */}
-
-                      <td
-                        style={{
-                          padding: "12px"
-                        }}
-                      >
-                        {trade.quantity}
-                      </td>
-
-
-                      {/* Price */}
-
-                      <td
-                        style={{
-                          padding: "12px"
-                        }}
-                      >
-                        ${trade.price}
-                      </td>
-
-
-                      {/* Total */}
-
-                      <td
-                        style={{
-                          padding: "12px"
-                        }}
-                      >
-
-                        $
-                        {(
-                          trade.price *
-                          (trade.quantity || 1)
-                        ).toFixed(2)}
-
-                      </td>
-
-                    </tr>
-
-                  ))}
-
+                      {trade.type}
+                    </td>
+                    <td style={{ padding: "12px" }}>{trade.quantity}</td>
+                    <td style={{ padding: "12px" }}>${trade.price}</td>
+                    <td style={{ padding: "12px" }}>
+                      ${(trade.price * (trade.quantity || 1)).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
-
             </table>
-
           </div>
-
         )}
-
       </div>
 
     </div>
-
   );
-
 }
 
 
