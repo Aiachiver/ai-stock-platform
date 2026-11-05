@@ -1,13 +1,31 @@
 import React from "react";
 
 function PredictionBox({ prediction }) {
-  if (!prediction) return null;
+  if (!prediction || prediction.loading) {
+    return (
+      <section className="research-panel research-loading" aria-live="polite">
+        <div className="research-panel__top">
+          <div>
+            <span className="eyebrow">NEXT-SESSION RESEARCH</span>
+            <h2>AI Forecast</h2>
+          </div>
+          <span className="research-status"><span className="loading-dot" /> Training model</span>
+        </div>
+        <p className="research-muted">Preparing indicators and comparing time-series models. This can take a little longer on the first request.</p>
+        <div className="research-skeleton" />
+      </section>
+    );
+  }
 
   if (prediction.error || prediction.signal === "NO DATA") {
     return (
-      <section style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, padding: 20, color: "#cbd5e1" }}>
-        <h2 style={{ marginTop: 0 }}>AI Forecast</h2>
-        {prediction.error || prediction.note || "A forecast is not available for this symbol."}
+      <section className="research-panel">
+        <div className="research-panel__top">
+          <div><span className="eyebrow">NEXT-SESSION RESEARCH</span><h2>AI Forecast</h2></div>
+          <span className="research-status research-status--warning">Unavailable</span>
+        </div>
+        <p className="research-muted">{prediction.note || prediction.error || "A forecast is not available for this symbol."}</p>
+        <p className="research-disclaimer">No BUY or SELL recommendation is issued when reliable model output is unavailable.</p>
       </section>
     );
   }
@@ -25,43 +43,20 @@ function PredictionBox({ prediction }) {
   ];
 
   return (
-    <section style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, padding: 22, color: "#f8fafc" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14 }}>
-        <div>
-          <p style={{ color: "#94a3b8", margin: "0 0 6px", fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>Next-session experimental forecast</p>
-          <h2 style={{ margin: 0 }}>AI Model Signal</h2>
-        </div>
-        <strong style={{ color: signalColor, border: "1px solid " + signalColor, borderRadius: 20, padding: "7px 16px", fontSize: 14 }}>{signal}</strong>
+    <section className="research-panel">
+      <div className="research-panel__top">
+        <div><span className="eyebrow">NEXT-SESSION EXPERIMENTAL FORECAST</span><h2>AI Model Signal</h2></div>
+        <strong className="forecast-signal" style={{ color: signalColor, borderColor: signalColor }}>{signal}</strong>
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, margin: "20px 0" }}>
-        <div style={{ background: "#0f172a", borderRadius: 10, padding: 16 }}>
-          <div style={{ color: "#94a3b8", fontSize: 12 }}>Latest reference price</div>
-          <strong style={{ display: "block", fontSize: 25, marginTop: 7 }}>{money(prediction.current_price)}</strong>
-        </div>
-        <div style={{ background: "#0f172a", borderRadius: 10, padding: 16 }}>
-          <div style={{ color: "#94a3b8", fontSize: 12 }}>Model-estimated price</div>
-          <strong style={{ display: "block", fontSize: 25, marginTop: 7 }}>{money(prediction.predicted_price)}</strong>
-        </div>
-        <div style={{ background: "#0f172a", borderRadius: 10, padding: 16 }}>
-          <div style={{ color: "#94a3b8", fontSize: 12 }}>Estimated return</div>
-          <strong style={{ display: "block", fontSize: 25, marginTop: 7, color: Number(prediction.predicted_return_pct) >= 0 ? "#4ade80" : "#f87171" }}>
-            {prediction.predicted_return_pct == null ? "—" : (Number(prediction.predicted_return_pct) > 0 ? "+" : "") + Number(prediction.predicted_return_pct).toFixed(3) + "%"}
-          </strong>
-        </div>
+      <div className="forecast-values">
+        <div><span>Latest reference price</span><strong>{money(prediction.current_price)}</strong></div>
+        <div><span>Model-estimated price</span><strong>{money(prediction.predicted_price)}</strong></div>
+        <div><span>Estimated return</span><strong style={{ color: Number(prediction.predicted_return_pct) >= 0 ? "#4ade80" : "#f87171" }}>{prediction.predicted_return_pct == null ? "—" : (Number(prediction.predicted_return_pct) > 0 ? "+" : "") + Number(prediction.predicted_return_pct).toFixed(3) + "%"}</strong></div>
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 10 }}>
-        {metrics.map(([label, value]) => (
-          <div key={label} style={{ background: "#111827", borderRadius: 9, padding: 12 }}>
-            <div style={{ color: "#94a3b8", fontSize: 11 }}>{label}</div>
-            <strong style={{ display: "block", marginTop: 6, fontSize: 14 }}>{value}</strong>
-          </div>
-        ))}
+      <div className="forecast-metrics">
+        {metrics.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}
       </div>
-      <p style={{ color: "#94a3b8", fontSize: 12, lineHeight: 1.6, margin: "16px 0 0" }}>
-        {prediction.note || "Experimental model output. Not investment advice and not a guaranteed result."}
-      </p>
+      <p className="research-disclaimer">{prediction.note || "Experimental model output. Not investment advice and not a guaranteed result."}</p>
     </section>
   );
 }
