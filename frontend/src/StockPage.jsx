@@ -1,7 +1,7 @@
+
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { Line } from "react-chartjs-2";
-import CandleChart from "./components/CandleChart";
+import API, { API_BASE_URL } from "./services/api";
 
 import {
   Chart as ChartJS,
@@ -20,28 +20,35 @@ function StockPage() {
   const [livePrice, setLivePrice] = useState(null);
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res1 = await API.get(`/stock/${symbol}`);
+        setData(res1.data.ohlc || []);
+
+        const res2 = await API.get(`/predict/${symbol}`);
+        setPrediction(res2.data);
+      } catch (err) {
+        console.error("Stock API Error:", err);
+      }
+    };
+
     fetchData();
 
-    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${symbol}`);
+    const wsBase = API_BASE_URL.replace(/^http/, "ws");
+    const ws = new WebSocket(`${wsBase}/ws/${symbol}`);
+
     ws.onmessage = (e) => {
       const d = JSON.parse(e.data);
       setLivePrice(d.price);
     };
 
+    ws.onerror = (error) => {
+      console.error("WebSocket Error:", error);
+    };
+
     return () => ws.close();
+
   }, [symbol]);
-
-  const fetchData = async () => {
-    try {
-      const res1 = await axios.get(`http://127.0.0.1:8000/stock/${symbol}`);
-      setData(res1.data.ohlc || []);
-
-      const res2 = await axios.get(`http://127.0.0.1:8000/predict/${symbol}`);
-      setPrediction(res2.data);
-    } catch (err) {
-      console.log(err);
-    }
-  };
 
   const chartData = {
     labels: data.map(d => d.time),
@@ -58,16 +65,21 @@ function StockPage() {
     <div style={{ textAlign: "center" }}>
       <h2>Stock Dashboard</h2>
 
-      <select onChange={(e) => setSymbol(e.target.value)}>
-        <option>AAPL</option>
-        <option>TSLA</option>
+      <select
+        value={symbol}
+        onChange={(e) => setSymbol(e.target.value)}
+      >
+        <option value="AAPL">AAPL</option>
+        <option value="TSLA">TSLA</option>
       </select>
 
       <div style={{ width: "600px", margin: "auto" }}>
         <Line data={chartData} />
       </div>
 
-      {livePrice && <h3>Live Price: {livePrice}</h3>}
+      {livePrice !== null && (
+        <h3>Live Price: {livePrice}</h3>
+      )}
 
       {prediction && (
         <>
