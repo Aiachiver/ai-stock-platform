@@ -47,6 +47,7 @@ function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const requestSequence = useRef(0);
   const premiumRequestSequence = useRef(0);
+  const modelRequestSequence = useRef(0);
 
 
   // Load the selected stock chart first. Slower quote and account endpoints
@@ -58,9 +59,6 @@ function Dashboard() {
     setStockError("");
     setStockData([]);
     setQuote(null);
-    setPrediction({ loading: true });
-    setPerformance({ loading: true });
-    setAdvancedIntelligence({ loading: true });
 
     try {
       const stockResponse = await API.get(`/stock/${selectedSymbol}`);
@@ -102,7 +100,6 @@ function Dashboard() {
       API.get("/portfolio/details"),
       API.get("/portfolio/positions"),
       API.get("/portfolio/chart"),
-      API.get("/history"),
       API.get("/me")
     ]);
     if (requestId !== requestSequence.current) return;
@@ -112,33 +109,11 @@ function Dashboard() {
     if (value(1)) setDetails(value(1));
     setPositions(Array.isArray(value(2)) ? value(2) : []);
     setChartData(Array.isArray(value(3)) ? value(3) : []);
-    setHistory(Array.isArray(value(4)) ? value(4) : []);
-    const user = value(5);
+    const user = value(4);
     if (user?.username) setUsername(user.username);
     setLastUpdated(new Date());
 
-    // Research calls are intentionally independent from the primary price chart.
-    const research = await Promise.allSettled([
-      API.get(`/performance/${selectedSymbol}`, { timeout: 90000 }),
-      API.get(`/predict/${selectedSymbol}`, { timeout: 90000 }),
-      API.get(`/intelligence/${selectedSymbol}`, { timeout: 120000 })
-    ]);
-    if (requestId !== requestSequence.current) return;
-    setPerformance(research[0].status === "fulfilled"
-      ? research[0].value.data
-      : { error: research[0].reason?.code === "ECONNABORTED"
-          ? "Model validation exceeded the 90-second processing limit. Retry after the backend is ready."
-          : "Model validation request failed. Check backend service logs." });
-    setPrediction(research[1].status === "fulfilled"
-      ? research[1].value.data
-      : { signal: "NO DATA", note: research[1].reason?.code === "ECONNABORTED"
-          ? "Forecast exceeded the 90-second processing limit. Retry after the backend is ready."
-          : "Forecast request failed. Check backend service logs." });
-    setAdvancedIntelligence(research[2].status === "fulfilled"
-      ? research[2].value.data
-      : { error: research[2].reason?.code === "ECONNABORTED"
-          ? "Advanced intelligence exceeded the 120-second processing limit. Retry after the backend is ready."
-          : "Advanced intelligence request failed. Check backend service logs." });
+
   };
 
   // After a paper order, update only account data. Never reload charts or retrain models.
@@ -146,14 +121,38 @@ function Dashboard() {
     const results = await Promise.allSettled([
       API.get("/portfolio/details"),
       API.get("/portfolio/positions"),
-      API.get("/portfolio/chart"),
-      API.get("/history")
+      API.get("/portfolio/chart")
     ]);
     if (results[0].status === "fulfilled") setDetails(results[0].value.data);
     if (results[1].status === "fulfilled") setPositions(Array.isArray(results[1].value.data) ? results[1].value.data : []);
     if (results[2].status === "fulfilled") setChartData(Array.isArray(results[2].value.data) ? results[2].value.data : []);
-    if (results[3].status === "fulfilled") setHistory(Array.isArray(results[3].value.data) ? results[3].value.data : []);
     setLastUpdated(new Date());
+  };
+
+  const loadHistory = async () => {
+    try {
+      const response = await API.get("/history");
+      setHistory(Array.isArray(response.data) ? response.data : []);
+    } catch {
+      setHistory([]);
+    }
+  };
+
+  const loadModelDetails = async (selectedSymbol = symbol) => {
+    const requestId = ++modelRequestSequence.current;
+    setPerformance({ loading: true });
+    setPrediction({ loading: true });
+    setAdvancedIntelligence({ loading: true });
+    const results = await Promise.allSettled([
+      API.get(`/performance/${selectedSymbol}`, { timeout: 90000 }),
+      API.get(`/predict/${selectedSymbol}`, { timeout: 90000 }),
+      API.get(`/intelligence/${selectedSymbol}`, { timeout: 120000 })
+    ]);
+    if (requestId !== modelRequestSequence.current) return;
+    setPerformance(results[0].status === "fulfilled" ? results[0].value.data : { error: "Model validation is temporarily unavailable." });
+    setPrediction(results[1].status === "fulfilled" ? results[1].value.data : { signal: "NO DATA", note: "Forecast is temporarily unavailable." });
+    setAdvancedIntelligence(results[2].status === "fulfilled" ? results[2].value.data : { error: "Advanced intelligence is temporarily unavailable." });
+    loadPremium(selectedSymbol);
   };
 
   // Load optional research modules independently so one provider outage
@@ -179,9 +178,14 @@ function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadDashboard();
-    loadPremium(symbol);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol]);
+
+  useEffect(() => {
+    if (activeView === "history") loadHistory();
+    if (activeView === "models") loadModelDetails(symbol);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView, symbol]);
 
 
   // WebSocket live price.
@@ -237,7 +241,8 @@ function Dashboard() {
   // Refresh dashboard
   const refreshDashboard = () => {
     loadDashboard();
-    loadPremium(symbol);
+    if (activeView === "history") loadHistory();
+    if (activeView === "models") loadModelDetails(symbol);
   };
 
 
