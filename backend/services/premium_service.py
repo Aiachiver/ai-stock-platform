@@ -130,18 +130,33 @@ def get_portfolio_risk(trades):
         return {"holdings": [], "portfolio_volatility_pct": None, "var_95_pct": None,
                 "max_drawdown_pct": None, "risk_level": "No holdings",
                 "note": "Add a position to calculate portfolio risk."}
-    prices = {}
-    values = {}
-    for symbol, position in holdings.items():
+    def load_holding_history(item):
+        symbol, position = item
         try:
             hist = yf.Ticker(symbol).history(period="1y", interval="1d", auto_adjust=True)
             if getattr(hist.columns, "nlevels", 1) > 1:
                 hist.columns = hist.columns.get_level_values(0)
-            if not hist.empty and "Close" in hist:
-                prices[symbol] = hist["Close"].rename(symbol)
-                values[symbol] = float(hist["Close"].iloc[-1]) * position["quantity"]
+            if hist.empty or "Close" not in hist:
+                return None
+            close = hist["Close"].dropna()
+            if close.empty:
+                return None
+            return symbol, close.rename(symbol), float(close.iloc[-1]) * position["quantity"]
         except Exception:
-            continue
+            return None
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=min(5, len(holdings))) as executor:
+        results = executor.map(load_holding_history, holdings.items())
+
+    prices, values = {}, {}
+    for result in results:
+        if result is not None:
+            symbol, close, market_value = result
+            prices[symbol] = close
+            values[symbol] = market_value
+
     total_value = sum(values.values())
     if not prices or total_value <= 0:
         return {"holdings": [], "portfolio_volatility_pct": None, "var_95_pct": None,
