@@ -10,6 +10,8 @@ import PredictionPerformance from "../components/PredictionPerformance";
 import AdvancedIntelligence from "../components/AdvancedIntelligence";
 import PremiumAnalytics from "../components/PremiumAnalytics";
 import PortfolioRisk from "../components/PortfolioRisk";
+import TradeHistoryPage from "./TradeHistoryPage";
+import ModelDetailsPage from "./ModelDetailsPage";
 
 
 function Dashboard() {
@@ -45,6 +47,8 @@ function Dashboard() {
 
   // Logged-in username and update time
   const [username, setUsername] = useState("");
+  const [activeView, setActiveView] = useState("dashboard");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const requestSequence = useRef(0);
   const premiumRequestSequence = useRef(0);
@@ -337,9 +341,17 @@ function Dashboard() {
             Logout
           </button>
         </div>
+        <div style={{ position: "relative" }}>
+          <button type="button" aria-label="Open navigation menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} style={{ background: "#1e293b", color: "white", border: "1px solid #334155", borderRadius: 10, padding: "10px 14px", cursor: "pointer", fontSize: 22, lineHeight: 1 }}>☰</button>
+          {menuOpen && <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 20, width: 210, padding: 8, borderRadius: 12, background: "#172554", border: "1px solid #334155", boxShadow: "0 12px 30px rgba(0,0,0,.35)" }}>
+            {[[ "dashboard", "📊 Dashboard" ], [ "history", "📜 Trade History" ], [ "models", "🧠 Model Details" ]].map(([view, label]) => <button key={view} type="button" onClick={() => { setActiveView(view); setMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 12px", margin: "2px 0", border: 0, borderRadius: 8, cursor: "pointer", color: "white", background: activeView === view ? "#2563eb" : "transparent", fontWeight: 600 }}>{label}</button>)}
+          </div>}
+        </div>
       </div>
 
-
+      {activeView === "history" && <TradeHistoryPage history={history} />}
+      {activeView === "models" && <ModelDetailsPage symbol={symbol} prediction={prediction} performance={performance} advancedIntelligence={advancedIntelligence} insights={insights} backtest={backtest} risk={risk} premiumLoading={premiumLoading} />}
+      {activeView === "dashboard" && (<>
       <div style={{
         background: "#172554", border: "1px solid #1d4ed8", borderRadius: 12,
         padding: "12px 16px", marginBottom: 20, color: "#dbeafe",
@@ -511,12 +523,7 @@ function Dashboard() {
       </div>
 
 
-      {/* ML PREDICTION */}
-      <div style={{ marginTop: "20px" }}>
-        <PredictionBox prediction={prediction} />
-        <PredictionPerformance data={performance} loading={Boolean(performance?.loading)} />
-        <AdvancedIntelligence data={advancedIntelligence} loading={Boolean(advancedIntelligence?.loading)} />
-      </div>
+
 
 
       {/* TRADE PANEL */}
@@ -532,9 +539,7 @@ function Dashboard() {
       {/* PORTFOLIO CHARTS */}
       <PortfolioCharts data={chartData} />
 
-      {/* RESEARCH AND RISK TOOLS */}
-      <PremiumAnalytics insights={insights} backtest={backtest} loading={premiumLoading} />
-      <PortfolioRisk data={risk} loading={premiumLoading} />
+
 
 
       {/* CURRENT POSITIONS */}
@@ -613,67 +618,8 @@ function Dashboard() {
       </div>
 
 
-      {/* TRADE HISTORY */}
-      <div style={{ marginTop: "30px" }}>
-        <h2 style={{ textAlign: "center" }}>📜 Trade History</h2>
 
-        {history.length === 0 ? (
-          <p style={{ textAlign: "center", color: "#94a3b8" }}>
-            No trades yet
-          </p>
-        ) : (
-          <div
-            style={{
-              width: "95%",
-              margin: "auto",
-              background: "#1e293b",
-              borderRadius: "12px",
-              padding: "20px",
-              overflowX: "auto"
-            }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                textAlign: "center"
-              }}
-            >
-              <thead>
-                <tr>
-                  <th style={{ padding: "12px" }}>Symbol</th>
-                  <th style={{ padding: "12px" }}>Type</th>
-                  <th style={{ padding: "12px" }}>Quantity</th>
-                  <th style={{ padding: "12px" }}>Price</th>
-                  <th style={{ padding: "12px" }}>Total</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {history.slice().reverse().map((trade) => (
-                  <tr key={trade.id}>
-                    <td style={{ padding: "12px" }}>{trade.symbol}</td>
-                    <td
-                      style={{
-                        padding: "12px",
-                        color: trade.type === "BUY" ? "#22c55e" : "#ef4444",
-                        fontWeight: "bold"
-                      }}
-                    >
-                      {trade.type}
-                    </td>
-                    <td style={{ padding: "12px" }}>{trade.quantity}</td>
-                    <td style={{ padding: "12px" }}>${trade.price}</td>
-                    <td style={{ padding: "12px" }}>
-                      ${(trade.price * (trade.quantity || 1)).toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      </>)}
 
     </div>
   );
