@@ -86,10 +86,7 @@ def _build_features(stock: pd.DataFrame, market: pd.Series) -> pd.DataFrame:
     f["market_return_5"] = market.rolling(5).sum()
     f["market_return_20"] = market.rolling(20).sum()
     f["relative_strength_20"] = close.pct_change(20) - market.rolling(20).sum()
-    # Regime inputs are known at the close of the prediction date.
-    f["market_trend"] = market.rolling(50).mean()
     f["market_volatility"] = market.rolling(20).std() * np.sqrt(252)
-    f = f.drop(columns=["market_trend"])
     return f.replace([np.inf, -np.inf], np.nan)
 
 
