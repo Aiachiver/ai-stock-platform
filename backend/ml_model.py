@@ -319,12 +319,23 @@ def _get_research_context(symbol):
 
         development_x, development_y = _development_data(splits)
         model_name, cv_scores = _select_model(development_x, development_y)
+
+        # Fit both endpoint estimators once per cache window.
+        forecast_x, forecast_y = _dataset(frame)
+        forecast_model = MODEL_FACTORIES[model_name]()
+        forecast_model.fit(forecast_x, forecast_y)
+
+        evaluation_model = MODEL_FACTORIES[model_name]()
+        evaluation_model.fit(development_x, development_y)
+
         context = {
             "frame": frame,
             "splits": splits,
             "model_name": model_name,
             "cv_scores": cv_scores,
             "selected_metrics": cv_scores[model_name],
+            "forecast_model": forecast_model,
+            "evaluation_model": evaluation_model,
         }
 
         with _research_cache_guard:
@@ -359,16 +370,12 @@ def predict_stock(symbol):
         model_name = context["model_name"]
         selected_metrics = context["selected_metrics"]
 
-        all_x, all_y = _dataset(frame)
         latest_feature_frame = _features(frame).dropna()
         if latest_feature_frame.empty:
             return {"current_price": None, "predicted_price": None, "signal": "NO DATA",
                     "note": "Latest indicator rows are incomplete for this symbol."}
         latest_features = latest_feature_frame.iloc[[-1]]
-        model = MODEL_FACTORIES[model_name]()
-        model.fit(all_x, all_y)
-
-        predicted_return = float(model.predict(latest_features)[0])
+        predicted_return = float(context["forecast_model"].predict(latest_features)[0])
         current = float(frame["Close"].iloc[-1])
         predicted = current * (1 + predicted_return)
 
@@ -427,11 +434,7 @@ def evaluate_prediction(symbol):
         model_name = context["model_name"]
         cv_scores = context["cv_scores"]
         selected_metrics = context["selected_metrics"]
-        development_x, development_y = _development_data(context["splits"])
-
-        model = MODEL_FACTORIES[model_name]()
-        model.fit(development_x, development_y)
-        predicted_returns = model.predict(x_test)
+        predicted_returns = context["evaluation_model"].predict(x_test)
 
         previous_closes = frame.loc[x_test.index, "Close"].astype(float).to_numpy()
         actual_returns = y_test.to_numpy()
