@@ -3,13 +3,8 @@ import API, { API_BASE_URL } from "../services/api";
 
 import StockChart from "../components/StockChart";
 import TradePanel from "../components/TradePanel";
-import PredictionBox from "../components/PredictionBox";
 import PortfolioCharts from "../components/PortfolioCharts";
 import StockOverview from "../components/StockOverview";
-import PredictionPerformance from "../components/PredictionPerformance";
-import AdvancedIntelligence from "../components/AdvancedIntelligence";
-import PremiumAnalytics from "../components/PremiumAnalytics";
-import PortfolioRisk from "../components/PortfolioRisk";
 import TradeHistoryPage from "./TradeHistoryPage";
 import ModelDetailsPage from "./ModelDetailsPage";
 
