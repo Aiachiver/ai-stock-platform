@@ -34,6 +34,21 @@ def ensure_trade_timestamp_column():
             ))
 
 ensure_trade_timestamp_column()
+
+def mark_backfilled_trade_dates_unknown():
+    # The initial schema migration stamped every pre-existing trade with one
+    # deployment-time value. If the oldest timestamp is shared by multiple
+    # rows, it is a migration artifact, not their actual transaction time.
+    with engine.begin() as connection:
+        connection.execute(text("""
+            UPDATE trades
+            SET created_at = NULL
+            WHERE created_at = (SELECT MIN(created_at) FROM trades)
+              AND (SELECT COUNT(*) FROM trades
+                   WHERE created_at = (SELECT MIN(created_at) FROM trades)) > 1
+        """))
+
+mark_backfilled_trade_dates_unknown()
 app = FastAPI(
     title="TradeSight AI API",
     version="1.1.0",
