@@ -198,6 +198,11 @@ def _select_model(x_train, y_train):
 
     test_size = max(10, len(x_train) // 10)
     splitter = TimeSeriesSplit(n_splits=2, test_size=test_size)
+    folds = list(splitter.split(x_train))
+    baseline_mae = float(np.mean([
+        np.mean(np.abs(y_train.iloc[valid_idx].to_numpy())) * 100
+        for _, valid_idx in folds
+    ]))
     scores = {}
 
     for name, factory in MODEL_FACTORIES.items():
@@ -205,7 +210,7 @@ def _select_model(x_train, y_train):
         fold_balanced = []
         fold_mae = []
 
-        for train_idx, valid_idx in splitter.split(x_train):
+        for train_idx, valid_idx in folds:
             model = factory()
             x_fold_train = x_train.iloc[train_idx]
             y_fold_train = y_train.iloc[train_idx]
@@ -228,12 +233,6 @@ def _select_model(x_train, y_train):
         mean_mae = float(np.mean(fold_mae))
         # A zero-return forecast is a transparent, trading-relevant baseline.
         # Compare each model against it on exactly the same chronological folds.
-        baseline_mae = float(
-            np.mean([
-                np.mean(np.abs(y_train.iloc[valid_idx].to_numpy())) * 100
-                for _, valid_idx in splitter.split(x_train)
-            ])
-        )
         mae_skill = (
             (baseline_mae - mean_mae) / baseline_mae * 100
             if baseline_mae > 0 else 0.0
