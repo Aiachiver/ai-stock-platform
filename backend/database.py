@@ -11,7 +11,8 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 # Supabase PostgreSQL connection
 engine = create_engine(
     DATABASE_URL,
-    echo=False
+    echo=False,
+    pool_pre_ping=True,
 )
 
 # Database sessions
