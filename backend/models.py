@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -58,6 +58,13 @@ class Trade(Base):
         Integer,
         default=1,
         nullable=False
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        index=True
     )
 
     user_id = Column(
