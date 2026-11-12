@@ -84,7 +84,7 @@ def get_strategy_backtest(symbol, fast_window=20, slow_window=50):
     volatility = float(strategy_returns.std() * np.sqrt(252))
     sharpe = float((strategy_returns.mean() * 252) / (strategy_returns.std() * np.sqrt(252))) if strategy_returns.std() else 0
     trades = int((signal.diff().abs() > 0).sum())
-    wins = int((strategy_returns[signal > 0] > 0).sum())
+    active_day_wins = int((strategy_returns[signal > 0] > 0).sum())
     active_days = int((signal > 0).sum())
     recent = min(90, len(close))
     chart = [{
@@ -102,7 +102,10 @@ def get_strategy_backtest(symbol, fast_window=20, slow_window=50):
         "annualized_volatility_pct": round(volatility * 100, 2),
         "sharpe_ratio": round(sharpe, 2),
         "trade_count": trades,
-        "win_rate_pct": round(wins / active_days * 100, 2) if active_days else 0,
+        # Share of invested days with positive daily returns, not per-trade win rate.
+        "active_day_win_rate_pct": (
+            round(active_day_wins / active_days * 100, 2) if active_days else 0
+        ),
         "chart": chart,
         "note": "Historical simulation before taxes, slippage and brokerage. Past results do not predict future returns."
     }
