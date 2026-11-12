@@ -19,7 +19,14 @@ function TradeHistoryPage({ history = [] }) {
               <td style={{ padding: 12 }}>{trade.quantity}</td>
               <td style={{ padding: 12 }}>${Number(trade.price || 0).toFixed(2)}</td>
               <td style={{ padding: 12 }}>${(Number(trade.price || 0) * Number(trade.quantity || 0)).toFixed(2)}</td>
-              <td style={{ padding: 12, color: "#94a3b8" }}>{trade.created_at ? new Date(trade.created_at).toLocaleString() : trade.timestamp ? new Date(trade.timestamp).toLocaleString() : "—"}</td>
+              <td style={{ padding: 12, color: "#94a3b8" }}>{(() => {
+                const rawDate = trade.created_at || trade.timestamp;
+                if (!rawDate) return "Date unavailable";
+                const date = new Date(rawDate);
+                return Number.isNaN(date.getTime())
+                  ? "Date unavailable"
+                  : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+              })()}</td>
             </tr>)}</tbody>
           </table>
         </div>
