@@ -1,25 +1,23 @@
+
 import axios from "axios";
 
 export const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 const API = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
 });
 
-API.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
 
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+  return config;
+});
 
 API.interceptors.response.use(
   (response) => response,
@@ -28,7 +26,6 @@ API.interceptors.response.use(
       localStorage.removeItem("token");
       window.location.reload();
     }
-
     return Promise.reject(error);
   }
 );
