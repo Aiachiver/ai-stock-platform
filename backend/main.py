@@ -18,6 +18,22 @@ from auth import create_token, verify_token
 from security import hash_password, verify_password
 
 Base.metadata.create_all(bind=engine)
+
+# create_all does not add columns to existing tables; migrate older databases safely.
+from sqlalchemy import inspect, text
+
+def ensure_trade_timestamp_column():
+    columns = {column["name"] for column in inspect(engine).get_columns("trades")}
+    if "created_at" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text(
+                "ALTER TABLE trades ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ))
+            connection.execute(text(
+                "UPDATE trades SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"
+            ))
+
+ensure_trade_timestamp_column()
 app = FastAPI(
     title="TradeSight AI API",
     version="1.1.0",
