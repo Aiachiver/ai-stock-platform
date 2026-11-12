@@ -97,19 +97,20 @@ function Dashboard() {
 
     const essentials = await Promise.allSettled([
       API.get(`/quote/${selectedSymbol}`),
-      API.get("/portfolio/details"),
-      API.get("/portfolio/positions"),
-      API.get("/portfolio/chart"),
+      API.get("/portfolio/summary"),
       API.get("/me")
     ]);
     if (requestId !== requestSequence.current) return;
     const value = (index) => essentials[index].status === "fulfilled" ? essentials[index].value.data : null;
     const quoteData = value(0);
+    const portfolio = value(1);
     if (quoteData && !quoteData.error) setQuote(quoteData);
-    if (value(1)) setDetails(value(1));
-    setPositions(Array.isArray(value(2)) ? value(2) : []);
-    setChartData(Array.isArray(value(3)) ? value(3) : []);
-    const user = value(4);
+    if (portfolio) {
+      setDetails(portfolio.details || null);
+      setPositions(Array.isArray(portfolio.positions) ? portfolio.positions : []);
+      setChartData(Array.isArray(portfolio.chart) ? portfolio.chart : []);
+    }
+    const user = value(2);
     if (user?.username) setUsername(user.username);
     setLastUpdated(new Date());
 
@@ -118,15 +119,16 @@ function Dashboard() {
 
   // After a paper order, update only account data. Never reload charts or retrain models.
   const refreshPortfolio = async () => {
-    const results = await Promise.allSettled([
-      API.get("/portfolio/details"),
-      API.get("/portfolio/positions"),
-      API.get("/portfolio/chart")
-    ]);
-    if (results[0].status === "fulfilled") setDetails(results[0].value.data);
-    if (results[1].status === "fulfilled") setPositions(Array.isArray(results[1].value.data) ? results[1].value.data : []);
-    if (results[2].status === "fulfilled") setChartData(Array.isArray(results[2].value.data) ? results[2].value.data : []);
-    setLastUpdated(new Date());
+    try {
+      const response = await API.get("/portfolio/summary");
+      const portfolio = response.data || {};
+      setDetails(portfolio.details || null);
+      setPositions(Array.isArray(portfolio.positions) ? portfolio.positions : []);
+      setChartData(Array.isArray(portfolio.chart) ? portfolio.chart : []);
+      setLastUpdated(new Date());
+    } catch {
+      // Keep the last successful portfolio snapshot visible during provider outages.
+    }
   };
 
   const loadHistory = async () => {
