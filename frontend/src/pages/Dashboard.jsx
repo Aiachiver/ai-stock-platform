@@ -316,38 +316,94 @@ function Dashboard() {
       >
         <h1 style={{ margin: 0 }}>📈 AI Trading Dashboard</h1>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div
+        <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            aria-label="Open navigation and account menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
             style={{
               background: "#1e293b",
-              padding: "10px 16px",
-              borderRadius: "10px",
-              fontWeight: "bold"
-            }}
-          >
-            👤 {username}
-          </div>
-
-          <button
-            onClick={logout}
-            style={{
-              background: "#ef4444",
               color: "white",
-              border: "none",
-              padding: "10px 18px",
-              borderRadius: "8px",
+              border: "1px solid #334155",
+              borderRadius: 10,
+              padding: "10px 14px",
               cursor: "pointer",
-              fontWeight: "bold"
+              fontSize: 22,
+              lineHeight: 1
             }}
           >
-            Logout
+            ☰
           </button>
-        </div>
-        <div style={{ position: "relative" }}>
-          <button type="button" aria-label="Open navigation menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} style={{ background: "#1e293b", color: "white", border: "1px solid #334155", borderRadius: 10, padding: "10px 14px", cursor: "pointer", fontSize: 22, lineHeight: 1 }}>☰</button>
-          {menuOpen && <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 20, width: 210, padding: 8, borderRadius: 12, background: "#172554", border: "1px solid #334155", boxShadow: "0 12px 30px rgba(0,0,0,.35)" }}>
-            {[[ "dashboard", "📊 Dashboard" ], [ "history", "📜 Trade History" ], [ "models", "🧠 Model Details" ]].map(([view, label]) => <button key={view} type="button" onClick={() => { setActiveView(view); setMenuOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 12px", margin: "2px 0", border: 0, borderRadius: 8, cursor: "pointer", color: "white", background: activeView === view ? "#2563eb" : "transparent", fontWeight: 600 }}>{label}</button>)}
-          </div>}
+          {menuOpen && (
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: "calc(100% + 8px)",
+                zIndex: 20,
+                width: 230,
+                padding: 8,
+                borderRadius: 12,
+                background: "#172554",
+                border: "1px solid #334155",
+                boxShadow: "0 12px 30px rgba(0,0,0,.35)"
+              }}
+            >
+              <div
+                style={{
+                  padding: "11px 12px",
+                  margin: "2px 0 8px",
+                  borderBottom: "1px solid #334155",
+                  color: "#cbd5e1",
+                  fontWeight: 700
+                }}
+              >
+                👤 {username || "Account"}
+              </div>
+              {[[ "dashboard", "📊 Dashboard" ], [ "history", "📜 Trade History" ], [ "models", "🧠 Model Details" ]].map(([view, label]) => (
+                <button
+                  key={view}
+                  type="button"
+                  onClick={() => { setActiveView(view); setMenuOpen(false); }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "11px 12px",
+                    margin: "2px 0",
+                    border: 0,
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    color: "white",
+                    background: activeView === view ? "#2563eb" : "transparent",
+                    fontWeight: 600
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+              <div style={{ borderTop: "1px solid #334155", margin: "8px 0" }} />
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); logout(); }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "11px 12px",
+                  border: 0,
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  color: "white",
+                  background: "#dc2626",
+                  fontWeight: 700
+                }}
+              >
+                ↪ Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
