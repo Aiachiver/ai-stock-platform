@@ -2,6 +2,21 @@ import React from "react";
 
 function TradeHistoryPage({ history = [] }) {
   const trades = Array.isArray(history) ? history.slice().reverse() : [];
+  const formatTradeDate = (rawDate) => {
+    if (!rawDate) return "Historical date unavailable";
+    // The database stores timezone-naive timestamps in UTC. Explicitly mark
+    // them as UTC before converting to India Standard Time for display.
+    const value = typeof rawDate === "string" && !/(Z|[+-]\\d{2}:?\\d{2})$/i.test(rawDate)
+      ? `${rawDate.replace(" ", "T")}Z`
+      : rawDate;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Date unavailable";
+    return new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(date);
+  };
   return (
     <section style={{ marginTop: 28, padding: 22, background: "#1e293b", border: "1px solid #334155", borderRadius: 14, color: "white" }}>
       <div style={{ marginBottom: 18 }}>
@@ -19,14 +34,7 @@ function TradeHistoryPage({ history = [] }) {
               <td style={{ padding: 12 }}>{trade.quantity}</td>
               <td style={{ padding: 12 }}>${Number(trade.price || 0).toFixed(2)}</td>
               <td style={{ padding: 12 }}>${(Number(trade.price || 0) * Number(trade.quantity || 0)).toFixed(2)}</td>
-              <td style={{ padding: 12, color: "#94a3b8" }}>{(() => {
-                const rawDate = trade.created_at || trade.timestamp;
-                if (!rawDate) return "Date unavailable";
-                const date = new Date(rawDate);
-                return Number.isNaN(date.getTime())
-                  ? "Date unavailable"
-                  : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-              })()}</td>
+              <td style={{ padding: 12, color: "#94a3b8" }}>{formatTradeDate(trade.created_at || trade.timestamp)}</td>
             </tr>)}</tbody>
           </table>
         </div>
