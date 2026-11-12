@@ -89,6 +89,56 @@ def get_portfolio_snapshot(trades):
         unrealized_profit += market_value - total_cost
     return {"positions": positions,"realized_profit": realized_profit,"invested": invested,"current_value": current_value,"unrealized_profit": unrealized_profit,"total_profit": realized_profit + unrealized_profit,"holdings": total_holdings}
 
+def build_portfolio_summary(user, trades):
+    positions, realized_profit = calculate_user_positions(trades)
+    invested = current_value = unrealized_profit = 0.0
+    total_holdings = 0
+    open_positions = []
+    chart = []
+
+    for symbol, position in positions.items():
+        quantity = position["quantity"]
+        if quantity <= 0:
+            continue
+        current_price = get_price(symbol)
+        if current_price is None:
+            continue
+
+        cost = position["total_cost"]
+        market_value = current_price * quantity
+        profit = market_value - cost
+        invested += cost
+        current_value += market_value
+        unrealized_profit += profit
+        total_holdings += quantity
+
+        open_positions.append({
+            "symbol": symbol, "quantity": quantity,
+            "average_price": round(cost / quantity, 2),
+            "current_price": round(current_price, 2),
+            "current_value": round(market_value, 2),
+            "invested": round(cost, 2), "profit": round(profit, 2),
+            "profit_percent": round(profit / cost * 100, 2) if cost > 0 else 0,
+        })
+        chart.append({
+            "symbol": symbol, "invested": round(cost, 2),
+            "current_value": round(market_value, 2), "profit": round(profit, 2),
+        })
+
+    total_profit = realized_profit + unrealized_profit
+    return {
+        "details": {
+            "balance": round(user.balance, 2), "holdings": total_holdings,
+            "invested": round(invested, 2), "current": round(current_value, 2),
+            "average_price": round(invested / total_holdings, 2) if total_holdings else 0,
+            "realized_profit": round(realized_profit, 2),
+            "unrealized_profit": round(unrealized_profit, 2),
+            "profit": round(total_profit, 2),
+        },
+        "positions": open_positions,
+        "chart": chart,
+    }
+
 @app.get("/")
 def home():
     return {"msg": "Backend is running 🚀"}
@@ -214,6 +264,17 @@ def portfolio(db: Session = Depends(get_db), username: str = Depends(verify_toke
     trades = db.query(models.Trade).filter(models.Trade.user_id == user.id).order_by(models.Trade.id).all()
     snapshot = get_portfolio_snapshot(trades)
     return {"balance": round(user.balance, 2), "holdings": snapshot["holdings"], "invested": round(snapshot["invested"], 2), "current": round(snapshot["current_value"], 2), "profit": round(snapshot["total_profit"], 2)}
+
+@app.get("/portfolio/summary")
+def portfolio_summary(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    user = get_current_user(username, db)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    trades = db.query(models.Trade).filter(
+        models.Trade.user_id == user.id
+    ).order_by(models.Trade.id).all()
+    return build_portfolio_summary(user, trades)
+
 
 @app.get("/portfolio/details")
 def portfolio_details(db: Session = Depends(get_db), username: str = Depends(verify_token)):
