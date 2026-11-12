@@ -47,6 +47,7 @@ function Dashboard() {
   const [username, setUsername] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
   const requestSequence = useRef(0);
+  const premiumRequestSequence = useRef(0);
 
 
   // Load the selected stock chart first. Slower quote and account endpoints
@@ -158,16 +159,20 @@ function Dashboard() {
 
   // Load optional research modules independently so one provider outage
   // cannot block the core quote, chart, portfolio or prediction dashboard.
-  const loadPremium = async () => {
+  const loadPremium = async (selectedSymbol = symbol) => {
+    const requestId = ++premiumRequestSequence.current;
     setPremiumLoading(true);
     const results = await Promise.allSettled([
-      API.get(`/insights/${symbol}`),
-      API.get(`/backtest/${symbol}`),
+      API.get(`/insights/${selectedSymbol}`),
+      API.get(`/backtest/${selectedSymbol}`),
       API.get("/portfolio/risk")
     ]);
-    if (results[0].status === "fulfilled") setInsights(results[0].value.data);
-    if (results[1].status === "fulfilled") setBacktest(results[1].value.data);
-    if (results[2].status === "fulfilled") setRisk(results[2].value.data);
+
+    // Ignore late responses from a previously selected stock.
+    if (requestId !== premiumRequestSequence.current) return;
+    setInsights(results[0].status === "fulfilled" ? results[0].value.data : null);
+    setBacktest(results[1].status === "fulfilled" ? results[1].value.data : null);
+    setRisk(results[2].status === "fulfilled" ? results[2].value.data : null);
     setPremiumLoading(false);
   };
 
@@ -175,7 +180,7 @@ function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadDashboard();
-    loadPremium();
+    loadPremium(symbol);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol]);
 
@@ -191,28 +196,30 @@ function Dashboard() {
 
       ws = new WebSocket(`${wsBaseUrl}/ws/${symbol}`);
 
+      setLivePrice(null);
       ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.price) {
-          setLivePrice(data.price);
+        try {
+          const data = JSON.parse(event.data);
+          const price = Number(data?.price);
+          if (Number.isFinite(price) && price > 0) setLivePrice(price);
+        } catch {
+          // Ignore malformed provider messages without breaking the dashboard.
         }
       };
 
-      ws.onerror = (error) => {
-        console.log("WEBSOCKET ERROR:", error);
+      ws.onerror = () => {
+        // WebSocket failures are non-fatal; the REST quote remains available.
       };
 
-      ws.onclose = () => {
-        console.log("WebSocket closed");
-      };
+      ws.onclose = () => {};
 
     } catch (error) {
       console.log("WEBSOCKET CONNECTION ERROR:", error);
     }
 
     return () => {
-      if (ws) {
-        ws.close();
+      if (ws && ws.readyState < WebSocket.CLOSING) {
+        ws.close(1000, "Symbol changed or dashboard unmounted");
       }
     };
   }, [symbol]);
@@ -231,7 +238,7 @@ function Dashboard() {
   // Refresh dashboard
   const refreshDashboard = () => {
     loadDashboard();
-    loadPremium();
+    loadPremium(symbol);
   };
 
 
