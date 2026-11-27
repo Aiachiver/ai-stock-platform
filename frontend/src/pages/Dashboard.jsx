@@ -5,6 +5,7 @@ import StockChart from "../components/StockChart";
 import TradePanel from "../components/TradePanel";
 import PortfolioCharts from "../components/PortfolioCharts";
 import StockOverview from "../components/StockOverview";
+import IntradayTradingPanel from "../components/IntradayTradingPanel";
 import TradeHistoryPage from "./TradeHistoryPage";
 import ModelDetailsPage from "./ModelDetailsPage";
 
@@ -528,6 +529,8 @@ function Dashboard() {
 
 
       <StockOverview quote={quote} livePrice={livePrice} />
+
+      <IntradayTradingPanel symbol={symbol} />
 
       {/* QUICK AI DECISION: fast forecast first, advanced validation in background */}
       {(() => {
