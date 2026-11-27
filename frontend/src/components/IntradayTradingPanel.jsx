@@ -66,17 +66,17 @@ function IntradayTradingPanel({ symbol }) {
   }], [candles]);
 
   const chartOptions = {
-    chart: { type: "candlestick", height: 320, background: "transparent", foreColor: "#cbd5e1", toolbar: { show: true }, animations: { enabled: false } },
+    chart: { type: "candlestick", height: 320, background: "transparent", foreColor: "#d8cbb3", toolbar: { show: true }, animations: { enabled: false } },
     theme: { mode: "dark" },
     plotOptions: { candlestick: { colors: { upward: "#16a085", downward: "#ef4444" }, wick: { useFillColor: true } } },
-    xaxis: { type: "datetime", labels: { datetimeUTC: false, style: { colors: "#94a3b8" } } },
-    yaxis: { tooltip: { enabled: true }, labels: { style: { colors: "#94a3b8" }, formatter: (v) => "$" + Number(v).toFixed(2) } },
-    grid: { borderColor: "#263449", strokeDashArray: 3 },
+    xaxis: { type: "datetime", labels: { datetimeUTC: false, style: { colors: "#aaa18f" } } },
+    yaxis: { tooltip: { enabled: true }, labels: { style: { colors: "#aaa18f" }, formatter: (v) => "$" + Number(v).toFixed(2) } },
+    grid: { borderColor: "#514c40", strokeDashArray: 3 },
     tooltip: { theme: "dark", x: { format: "HH:mm" } },
     noData: { text: "Intraday candles unavailable" }
   };
   const volumeOptions = {
-    chart: { type: "bar", height: 90, background: "transparent", foreColor: "#94a3b8", toolbar: { show: false }, sparkline: { enabled: false } },
+    chart: { type: "bar", height: 90, background: "transparent", foreColor: "#aaa18f", toolbar: { show: false }, sparkline: { enabled: false } },
     theme: { mode: "dark" },
     plotOptions: { bar: { columnWidth: "65%" } },
     colors: ["#64748b"],
@@ -88,12 +88,12 @@ function IntradayTradingPanel({ symbol }) {
   };
 
   return (
-    <section style={{ background: "linear-gradient(145deg,#111c31,#0b1220)", border: "1px solid #334155", borderRadius: 16, padding: 18, margin: "0 0 24px", boxShadow: "0 10px 26px rgba(0,0,0,.2)" }}>
+    <section style={{ background: "linear-gradient(145deg,#111c31,#0b1220)", border: "1px solid #514c40", borderRadius: 16, padding: 18, margin: "0 0 24px", boxShadow: "0 10px 26px rgba(0,0,0,.2)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
           <span style={{ color: "#38bdf8", fontSize: 11, fontWeight: 800, letterSpacing: ".12em" }}>INTRADAY MARKET TERMINAL</span>
           <h2 style={{ margin: "6px 0 3px" }}> {activeSymbol} · Stock Market</h2>
-          <span style={{ color: "#94a3b8", fontSize: 12 }}>1-minute provider candles · refreshes every 20 seconds</span>
+          <span style={{ color: "#aaa18f", fontSize: 12 }}>1-minute provider candles · refreshes every 20 seconds</span>
         </div>
         <div style={{ textAlign: "right" }}>
           <strong style={{ display: "block", fontSize: 25 }}>{money(data?.current_price)}</strong>
@@ -102,16 +102,16 @@ function IntradayTradingPanel({ symbol }) {
       </div>
 
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "17px 0 8px" }}>
-        <span style={{ color: "#94a3b8", fontSize: 12, marginRight: 4 }}>Chart interval</span>
-        {TIMEFRAMES.map((minute) => <button key={minute} onClick={() => setTimeframe(minute)} style={{ border: timeframe === minute ? "1px solid #38bdf8" : "1px solid #334155", background: timeframe === minute ? "#164e63" : "#172033", color: "white", padding: "7px 13px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>{minute}m</button>)}
+        <span style={{ color: "#aaa18f", fontSize: 12, marginRight: 4 }}>Chart interval</span>
+        {TIMEFRAMES.map((minute) => <button key={minute} onClick={() => setTimeframe(minute)} style={{ border: timeframe === minute ? "1px solid #38bdf8" : "1px solid #514c40", background: timeframe === minute ? "#164e63" : "#172033", color: "white", padding: "7px 13px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>{minute}m</button>)}
         <span style={{ color: "#64748b", fontSize: 11, marginLeft: "auto" }}>{lastRefresh ? `Updated ${lastRefresh.toLocaleTimeString()}` : ""}</span>
       </div>
 
-      {loading && !data ? <div style={{ padding: 35, textAlign: "center", color: "#cbd5e1" }}>Loading intraday candles…</div> : error && !data ? <div style={{ padding: 22, color: "#fbbf24" }}>{error}</div> : candles.length ? <>
+      {loading && !data ? <div style={{ padding: 35, textAlign: "center", color: "#d8cbb3" }}>Loading intraday candles…</div> : error && !data ? <div style={{ padding: 22, color: "#fbbf24" }}>{error}</div> : candles.length ? <>
         <Chart options={chartOptions} series={candleSeries} type="candlestick" height={320} />
-        <div style={{ color: "#94a3b8", fontSize: 11, margin: "0 0 2px 4px" }}>TRADED VOLUME</div>
+        <div style={{ color: "#aaa18f", fontSize: 11, margin: "0 0 2px 4px" }}>TRADED VOLUME</div>
         <Chart options={volumeOptions} series={volumeSeries} type="bar" height={90} />
-      </> : <div style={{ padding: 24, color: "#94a3b8" }}>No intraday candles returned by provider.</div>}
+      </> : <div style={{ padding: 24, color: "#aaa18f" }}>No intraday candles returned by provider.</div>}
 
       {(() => {
         const horizons = data?.horizons || [];
@@ -119,13 +119,13 @@ function IntradayTradingPanel({ symbol }) {
           !best || Math.abs(Number(item.up_probability_pct) - 50) > Math.abs(Number(best.up_probability_pct) - 50) ? item : best, null);
         const decision = strongest?.signal === "BUY" ? "UP BIAS" : strongest?.signal === "SELL BIAS" ? "DOWN BIAS" : "WAIT";
         const color = decision === "UP BIAS" ? "#34d399" : decision === "DOWN BIAS" ? "#f87171" : "#fbbf24";
-        return <div style={{ borderTop: "1px solid #263449", marginTop: 15, paddingTop: 17 }}>
-          <div style={{ background: "#0b1220", border: "1px solid #334155", borderRadius: 12, padding: 15 }}>
-            <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800 }}>STOCK TRADE SIGNAL · EXPERIMENTAL</div>
+        return <div style={{ borderTop: "1px solid #514c40", marginTop: 15, paddingTop: 17 }}>
+          <div style={{ background: "#0b1220", border: "1px solid #514c40", borderRadius: 12, padding: 15 }}>
+            <div style={{ color: "#aaa18f", fontSize: 11, fontWeight: 800 }}>STOCK TRADE SIGNAL · EXPERIMENTAL</div>
             <strong style={{ display: "block", color, fontSize: 24, margin: "7px 0" }}>{strongest ? decision : "WAITING FOR SIGNAL"}</strong>
-            <div style={{ color: "#cbd5e1", fontSize: 12 }}>{strongest ? `Review over the next ${strongest.minutes} minutes · UP ${strongest.up_probability_pct}% · DOWN ${strongest.down_probability_pct}%` : "Signal is unavailable until market data loads."}</div>
+            <div style={{ color: "#d8cbb3", fontSize: 12 }}>{strongest ? `Review over the next ${strongest.minutes} minutes · UP ${strongest.up_probability_pct}% · DOWN ${strongest.down_probability_pct}%` : "Signal is unavailable until market data loads."}</div>
           </div>
-          <button onClick={() => setShowDetails(value => !value)} style={{ width: "100%", marginTop: 10, padding: 10, borderRadius: 8, border: "1px solid #334155", background: "#172033", color: "white", cursor: "pointer", textAlign: "left" }}>{showDetails ? "Hide" : "Show"} detailed 5–30 minute signals {showDetails ? "−" : "+"}</button>
+          <button onClick={() => setShowDetails(value => !value)} style={{ width: "100%", marginTop: 10, padding: 10, borderRadius: 8, border: "1px solid #514c40", background: "#172033", color: "white", cursor: "pointer", textAlign: "left" }}>{showDetails ? "Hide" : "Show"} detailed 5–30 minute signals {showDetails ? "−" : "+"}</button>
           {showDetails && <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(145px,1fr))", gap: 10, marginTop: 12 }}>
               {horizons.map(item => {
@@ -133,14 +133,14 @@ function IntradayTradingPanel({ symbol }) {
                 const down = item.signal === "SELL BIAS";
                 const itemColor = up ? "#34d399" : down ? "#f87171" : "#fbbf24";
                 return <div key={item.minutes} style={{ background: "#0b1220", border: `1px solid ${itemColor}55`, borderRadius: 10, padding: 12 }}>
-                  <div style={{ color: "#94a3b8", fontSize: 11 }}>{item.minutes} MIN</div>
+                  <div style={{ color: "#aaa18f", fontSize: 11 }}>{item.minutes} MIN</div>
                   <strong style={{ display: "block", color: itemColor, margin: "6px 0" }}>{up ? "UP BIAS" : down ? "DOWN BIAS" : "WAIT"}</strong>
-                  <div style={{ color: "#cbd5e1", fontSize: 12 }}>UP {item.up_probability_pct}% · DOWN {item.down_probability_pct}%</div>
-                  <p style={{ color: "#94a3b8", fontSize: 11 }}>{item.reason}</p>
+                  <div style={{ color: "#d8cbb3", fontSize: 12 }}>UP {item.up_probability_pct}% · DOWN {item.down_probability_pct}%</div>
+                  <p style={{ color: "#aaa18f", fontSize: 11 }}>{item.reason}</p>
                 </div>;
               })}
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 12, color: "#cbd5e1", fontSize: 12 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 12, color: "#d8cbb3", fontSize: 12 }}>
               <span>Trend: <b>{data?.indicators?.trend || "—"}</b></span>
               <span>5m momentum: <b>{data?.indicators?.momentum_5m_pct ?? "—"}%</b></span>
               <span>Fast EMA: <b>{money(data?.indicators?.ema_fast)}</b></span>
@@ -149,7 +149,7 @@ function IntradayTradingPanel({ symbol }) {
           </>}
         </div>;
       })()}
-      <p style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.55, margin: "15px 0 0" }}>
+      <p style={{ color: "#aaa18f", fontSize: 11, lineHeight: 1.55, margin: "15px 0 0" }}>
         {data?.data_note || "Intraday data is supplied by Yahoo Finance and may be delayed or unavailable."} {data?.signal_note || "Signals are experimental and are not financial advice."}
       </p>
     </section>
