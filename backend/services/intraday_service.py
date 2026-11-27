@@ -13,7 +13,7 @@ import yfinance as yf
 _CACHE = {}
 _LOCKS = {}
 _GUARD = Lock()
-_CACHE_TTL = 45
+_CACHE_TTL = 20
 _HORIZONS = (5, 10, 15, 20, 25, 30)
 
 def _get_frame(symbol):
