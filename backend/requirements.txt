@@ -11,3 +11,4 @@ numpy
 scikit-learn>=1.2
 bcrypt
 psycopg[binary]
+websockets>=12.0
