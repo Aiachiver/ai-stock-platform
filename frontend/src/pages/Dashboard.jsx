@@ -6,6 +6,7 @@ import TradePanel from "../components/TradePanel";
 import PortfolioCharts from "../components/PortfolioCharts";
 import StockOverview from "../components/StockOverview";
 import IntradayTradingPanel from "../components/IntradayTradingPanel";
+import CryptoTradingPage from "./CryptoTradingPage";
 import TradeHistoryPage from "./TradeHistoryPage";
 import ModelDetailsPage from "./ModelDetailsPage";
 
@@ -406,7 +407,7 @@ function Dashboard() {
               >
                 👤 {username || "Account"}
               </div>
-              {[[ "dashboard", "📊 Dashboard" ], [ "history", "📜 Trade History" ], [ "models", "🧠 Model Details" ]].map(([view, label]) => (
+              {[[ "dashboard", "📊 Dashboard" ], [ "crypto", "₿ Crypto Terminal" ], [ "history", "📜 Trade History" ], [ "models", "🧠 Model Details" ]].map(([view, label]) => (
                 <button
                   key={view}
                   type="button"
@@ -452,6 +453,7 @@ function Dashboard() {
         </div>
       </div>
 
+      {activeView === "crypto" && <CryptoTradingPage />}
       {activeView === "history" && <TradeHistoryPage history={history} />}
       {activeView === "models" && <ModelDetailsPage symbol={symbol} prediction={prediction} performance={performance} advancedIntelligence={advancedIntelligence} insights={insights} backtest={backtest} risk={risk} premiumLoading={premiumLoading} />}
       {activeView === "dashboard" && (<>
