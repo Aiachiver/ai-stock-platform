@@ -20,6 +20,7 @@ export default function CryptoTradingPage() {
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [orderState, setOrderState] = useState({ loading: false, message: "", error: false });
 
@@ -29,7 +30,7 @@ export default function CryptoTradingPage() {
       if (!quiet && active) setLoading(true);
       if (quiet && active) setRefreshing(true);
       try {
-        const response = await API.get(`/intraday/${asset.symbol}`, { timeout: 35000 });
+        const response = await API.get(`/intraday/${asset.symbol}`, { timeout: 15000 });
         if (!active) return;
         setData(response.data);
         setError("");
@@ -43,7 +44,7 @@ export default function CryptoTradingPage() {
     };
     setData(null);
     load(false);
-    const timer = setInterval(() => load(true), 30000);
+    const timer = setInterval(() => load(true), 20000);
     return () => { active = false; clearInterval(timer); };
   }, [asset]);
 
@@ -125,7 +126,7 @@ export default function CryptoTradingPage() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><div><span style={{ color: "#94a3b8", fontSize: 11 }}>SELECTED MARKET</span><h2 style={{ margin: "5px 0" }}>{asset.name} <span style={{ color: "#94a3b8", fontSize: 14 }}>{asset.ticker}/USD</span></h2></div><div style={{ textAlign: "right" }}><strong style={{ fontSize: 27 }}>{usd(data?.current_price)}</strong><div style={{ color: Number(data?.change_pct) >= 0 ? "#34d399" : "#fb7185", fontSize: 13 }}>{data?.change_pct == null ? "—" : `${data.change_pct > 0 ? "+" : ""}${data.change_pct}% today`}</div></div></div>
             <div style={{ display: "flex", gap: 7, flexWrap: "wrap", margin: "14px 0" }}>{[1,5,15,30].map(m => <button key={m} onClick={() => setTimeframe(m)} style={{ padding: "7px 13px", borderRadius: 8, border: timeframe === m ? "1px solid #38bdf8" : "1px solid #34445b", background: timeframe === m ? "#164e63" : "#172235", color: "white", cursor: "pointer" }}>{m}m candles</button>)}<span style={{ marginLeft: "auto", color: "#64748b", fontSize: 11, alignSelf: "center" }}>{updatedAt ? `${refreshing ? "Updating… · " : "Updated "}${updatedAt.toLocaleTimeString()}` : ""}</span></div>
             {loading && !data ? <div style={{ padding: 60, textAlign: "center" }}>Loading crypto market data…</div> : error && !data ? <div style={{ padding: 25, color: "#fbbf24" }}>{error}</div> : candles.length ? <><Chart type="candlestick" height={340} options={chartOptions} series={chartSeries}/><div style={{ color: "#94a3b8", fontSize: 10, letterSpacing: ".1em" }}>VOLUME</div><Chart type="bar" height={85} options={volumeOptions} series={volumeSeries}/></> : <div style={{ padding: 30 }}>No candles received.</div>}
-            <p style={{ color: "#8192a9", fontSize: 11, marginBottom: 0 }}>Auto-refresh: every 30 seconds · 1-minute candles only advance when the provider publishes a new candle. Yahoo Finance can be delayed or rate-limited; this is not exchange-grade streaming.</p>
+            <p style={{ color: "#8192a9", fontSize: 11, marginBottom: 0 }}>Auto-refresh: every 20 seconds · candles update when the data provider publishes new market data.</p>
           </div>
 
           <aside style={{ background: "#111c2e", border: "1px solid #263449", borderRadius: 15, padding: 17 }}>
@@ -140,7 +141,7 @@ export default function CryptoTradingPage() {
 
         <section style={{ background: "#111c2e", border: "1px solid #263449", borderRadius: 15, padding: 17 }}>
           <div style={{ background: "#091321", border: `1px solid ${overallColor}66`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-            <div style={{ color: "#94a3b8", fontSize: 11, letterSpacing: ".12em", fontWeight: 800 }}>SIMPLE TRADE DECISION · PAPER TRADING</div>
+            <div style={{ color: "#94a3b8", fontSize: 11, letterSpacing: ".12em", fontWeight: 800 }}>TRADE SIGNAL · PAPER TRADING</div>
             <div style={{ color: overallColor, fontSize: 25, fontWeight: 900, margin: "7px 0" }}>{data ? overall : "WAITING FOR DATA"}</div>
             <p style={{ color: "#d5deeb", margin: 0, lineHeight: 1.5 }}>{data ? decisionText : "Market data is loading."}</p>
             <div style={{ display: "flex", gap: 18, flexWrap: "wrap", color: "#94a3b8", fontSize: 12, marginTop: 10 }}>
@@ -149,12 +150,16 @@ export default function CryptoTradingPage() {
               <span>DOWN score: <b style={{ color: "white" }}>{strongestSignal ? `${Number(strongestSignal.down_probability_pct).toFixed(1)}%` : "—"}</b></span>
             </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}><div><div style={{ color: "#38bdf8", fontSize: 11, fontWeight: 800, letterSpacing: ".12em" }}>AI HORIZON MONITOR</div><h2 style={{ margin: "5px 0" }}>Where could price move next?</h2><p style={{ color: "#94a3b8", margin: 0, fontSize: 12 }}>Each card shows the current technical bias for that time window.</p></div><div style={{ color: "#fbbf24", fontSize: 11 }}>Experimental technical score · not a guaranteed forecast</div></div>
+          <button onClick={() => setShowDetails(v => !v)} style={{ width: "100%", marginTop: 12, padding: "11px 14px", borderRadius: 9, border: "1px solid #34445b", background: "#172235", color: "#d5deeb", textAlign: "left", cursor: "pointer" }}>{showDetails ? "Hide" : "Show"} detailed signals (5–30 min) {showDetails ? "−" : "+"}</button>
+          {showDetails && <div style={{ marginTop: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 10, marginTop: 15 }}>
             {horizons.map(h => { const color = h.signal === "BUY" ? "#34d399" : h.signal === "SELL BIAS" ? "#fb7185" : "#fbbf24"; return <article key={h.minutes} style={{ background: "#091321", border: `1px solid ${color}66`, borderRadius: 11, padding: 13 }}><div style={{ color: "#94a3b8", fontSize: 11 }}>NEXT {h.minutes} MINUTES</div><strong style={{ display: "block", color, fontSize: 19, margin: "7px 0" }}>{h.signal === "BUY" ? "UP BIAS" : h.signal === "SELL BIAS" ? "DOWN BIAS" : "WAIT"}</strong><div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}><span>UP SCORE {h.up_probability_pct}%</span><span>DOWN SCORE {h.down_probability_pct}%</span></div><div style={{ height: 7, background: "#25344a", borderRadius: 9, overflow: "hidden", marginTop: 8 }}><div style={{ height: "100%", width: `${h.up_probability_pct}%`, background: color }}/></div><p style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.45 }}>{h.reason}</p></article>; })}
           </div>
           <p style={{ color: "#8192a9", fontSize: 11, lineHeight: 1.5, marginBottom: 0 }}>Scores are technical indicators from EMA trend and recent momentum, NOT calibrated probabilities or guaranteed price predictions. UP BIAS means upward conditions are stronger; DOWN BIAS means downward conditions are stronger; WAIT means no clear edge. Use the time window as a review horizon, not an exact promise of when price will move. Paper trading only.</p>
-        </section>
+        
+          <p style={{ color: "#8192a9", fontSize: 11, lineHeight: 1.5, marginBottom: 0 }}>Technical indicator scores are experimental, not guaranteed predictions. Use each window as a review horizon, not an exact promise.</p>
+          </div>}
+</section>
       </div>
     </main>
   );
