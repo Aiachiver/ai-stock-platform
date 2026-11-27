@@ -16,12 +16,12 @@ function PortfolioCharts({ data }) {
     return (
       <div
         style={{
-          background: "#1e293b",
+          background: "#182322",
           padding: "25px",
           borderRadius: "14px",
           textAlign: "center",
           marginTop: "25px",
-          color: "#94a3b8",
+          color: "#aaa18f",
         }}
       >
         No portfolio data available
@@ -30,8 +30,8 @@ function PortfolioCharts({ data }) {
   }
 
   const tooltipStyle = {
-    backgroundColor: "#111827",
-    border: "1px solid #334155",
+    backgroundColor: "#151e1e",
+    border: "1px solid #514c40",
     borderRadius: "8px",
     color: "#fff",
   };
@@ -39,7 +39,7 @@ function PortfolioCharts({ data }) {
   return (
     <div
       style={{
-        background: "#1e293b",
+        background: "#182322",
         padding: "25px",
         borderRadius: "14px",
         marginTop: "25px",
@@ -59,12 +59,12 @@ function PortfolioCharts({ data }) {
       {/* INVESTED VS CURRENT VALUE */}
       <div
         style={{
-          background: "#0f172a",
+          background: "#0b1118",
           padding: "20px",
           borderRadius: "12px",
         }}
       >
-        <h3 style={{ color: "#e2e8f0", marginBottom: "20px" }}>
+        <h3 style={{ color: "#eee5d5", marginBottom: "20px" }}>
           Invested vs Current Value
         </h3>
 
@@ -81,18 +81,18 @@ function PortfolioCharts({ data }) {
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#334155"
+                stroke="#514c40"
               />
 
               <XAxis
                 dataKey="symbol"
-                tick={{ fill: "#cbd5e1" }}
-                axisLine={{ stroke: "#475569" }}
+                tick={{ fill: "#d8cbb3" }}
+                axisLine={{ stroke: "#625840" }}
               />
 
               <YAxis
-                tick={{ fill: "#cbd5e1" }}
-                axisLine={{ stroke: "#475569" }}
+                tick={{ fill: "#d8cbb3" }}
+                axisLine={{ stroke: "#625840" }}
               />
 
               <Tooltip contentStyle={tooltipStyle} />
@@ -120,13 +120,13 @@ function PortfolioCharts({ data }) {
       {/* PROFIT / LOSS */}
       <div
         style={{
-          background: "#0f172a",
+          background: "#0b1118",
           padding: "20px",
           borderRadius: "12px",
           marginTop: "25px",
         }}
       >
-        <h3 style={{ color: "#e2e8f0", marginBottom: "20px" }}>
+        <h3 style={{ color: "#eee5d5", marginBottom: "20px" }}>
           Profit / Loss
         </h3>
 
@@ -143,18 +143,18 @@ function PortfolioCharts({ data }) {
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#334155"
+                stroke="#514c40"
               />
 
               <XAxis
                 dataKey="symbol"
-                tick={{ fill: "#cbd5e1" }}
-                axisLine={{ stroke: "#475569" }}
+                tick={{ fill: "#d8cbb3" }}
+                axisLine={{ stroke: "#625840" }}
               />
 
               <YAxis
-                tick={{ fill: "#cbd5e1" }}
-                axisLine={{ stroke: "#475569" }}
+                tick={{ fill: "#d8cbb3" }}
+                axisLine={{ stroke: "#625840" }}
               />
 
               <Tooltip contentStyle={tooltipStyle} />
