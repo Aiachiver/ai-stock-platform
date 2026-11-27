@@ -144,6 +144,7 @@ export default function CryptoTradingPage() {
             <div style={{ color: "#94a3b8", fontSize: 11, letterSpacing: ".12em", fontWeight: 800 }}>TRADE SIGNAL · PAPER TRADING</div>
             <div style={{ color: overallColor, fontSize: 25, fontWeight: 900, margin: "7px 0" }}>{data ? overall : "WAITING FOR DATA"}</div>
             <p style={{ color: "#d5deeb", margin: 0, lineHeight: 1.5 }}>{data ? decisionText : "Market data is loading."}</p>
+            {data?.is_stale && <p style={{ color: "#fbbf24", fontSize: 11, margin: "8px 0 0" }}>Showing cached data ({data.data_age_seconds}s old) while a fresh update loads.</p>}
             <div style={{ display: "flex", gap: 18, flexWrap: "wrap", color: "#94a3b8", fontSize: 12, marginTop: 10 }}>
               <span>Review window: <b style={{ color: "white" }}>{strongestSignal ? `${strongestSignal.minutes} minutes` : "—"}</b></span>
               <span>UP score: <b style={{ color: "white" }}>{strongestSignal ? `${strongestUp.toFixed(1)}%` : "—"}</b></span>
@@ -155,8 +156,6 @@ export default function CryptoTradingPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 10, marginTop: 15 }}>
             {horizons.map(h => { const color = h.signal === "BUY" ? "#34d399" : h.signal === "SELL BIAS" ? "#fb7185" : "#fbbf24"; return <article key={h.minutes} style={{ background: "#091321", border: `1px solid ${color}66`, borderRadius: 11, padding: 13 }}><div style={{ color: "#94a3b8", fontSize: 11 }}>NEXT {h.minutes} MINUTES</div><strong style={{ display: "block", color, fontSize: 19, margin: "7px 0" }}>{h.signal === "BUY" ? "UP BIAS" : h.signal === "SELL BIAS" ? "DOWN BIAS" : "WAIT"}</strong><div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}><span>UP SCORE {h.up_probability_pct}%</span><span>DOWN SCORE {h.down_probability_pct}%</span></div><div style={{ height: 7, background: "#25344a", borderRadius: 9, overflow: "hidden", marginTop: 8 }}><div style={{ height: "100%", width: `${h.up_probability_pct}%`, background: color }}/></div><p style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.45 }}>{h.reason}</p></article>; })}
           </div>
-          <p style={{ color: "#8192a9", fontSize: 11, lineHeight: 1.5, marginBottom: 0 }}>Scores are technical indicators from EMA trend and recent momentum, NOT calibrated probabilities or guaranteed price predictions. UP BIAS means upward conditions are stronger; DOWN BIAS means downward conditions are stronger; WAIT means no clear edge. Use the time window as a review horizon, not an exact promise of when price will move. Paper trading only.</p>
-        
           <p style={{ color: "#8192a9", fontSize: 11, lineHeight: 1.5, marginBottom: 0 }}>Technical indicator scores are experimental, not guaranteed predictions. Use each window as a review horizon, not an exact promise.</p>
           </div>}
 </section>
