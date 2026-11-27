@@ -209,3 +209,92 @@ html,body,#root{min-height:100%;background-color:var(--ts-bg);color:var(--ts-ivo
 .login-shell section{background:linear-gradient(145deg,#202b2b,#151e1e)!important;border-color:var(--ts-border)!important;box-shadow:0 28px 80px rgba(0,0,0,.38)!important}
 .dashboard-shell{background:radial-gradient(ellipse at 10% 0%,rgba(198,169,107,.09),transparent 34rem),#0b1118!important}
 @media(max-width:700px){.dashboard-shell{padding:14px!important}.login-shell{padding:16px!important}}
+
+
+/* TradeSight UI refresh — warm, bright, editorial trading workspace */
+:root {
+  color-scheme: light;
+  --ts-bg: #f5f4f1;
+  --ts-panel: #ffffff;
+  --ts-panel-raised: #f8f7f4;
+  --ts-border: #e7e4dd;
+  --ts-ink: #24242b;
+  --ts-muted: #777783;
+  --ts-accent: #6656c7;
+  --ts-accent-soft: #efedfb;
+}
+html, body, #root {
+  min-height: 100%;
+  background: var(--ts-bg) !important;
+  color: var(--ts-ink);
+}
+body {
+  background: #f5f4f1 !important;
+  color: #24242b !important;
+  font-family: "DM Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+}
+::selection { background: #e4defb; color: #292044; }
+h1, h2, h3, h4 { color: #24242b; }
+a { color: #6656c7; }
+button, input, select, textarea { font-family: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+  outline: 2px solid #7667d4 !important;
+  outline-offset: 3px;
+}
+/* Main app surfaces */
+.dashboard-shell, .app-shell, .login-shell, .crypto-terminal {
+  background: #f5f4f1 !important;
+  color: #24242b !important;
+}
+.login-shell section {
+  background: #ffffff !important;
+  border: 1px solid #e7e4dd !important;
+  box-shadow: 0 24px 70px rgba(38, 34, 24, .09) !important;
+}
+.app-shell input, .app-shell select, .app-shell textarea,
+.dashboard-shell input, .dashboard-shell select, .dashboard-shell textarea,
+.crypto-terminal input, .crypto-terminal select {
+  background: #fff !important;
+  color: #24242b !important;
+  border: 1px solid #dedbd3 !important;
+  border-radius: 10px;
+}
+input::placeholder, textarea::placeholder { color: #96939b !important; }
+/* Common panels/cards across dashboard, stock, crypto, portfolio and history */
+.research-panel, .trade-panel, .trade-confirm__card {
+  background: #fff !important;
+  color: #24242b !important;
+  border: 1px solid #e7e4dd !important;
+  box-shadow: 0 8px 28px rgba(38, 34, 24, .045) !important;
+}
+.research-muted, .research-disclaimer, .trade-panel__heading p,
+.trade-estimate span, .trade-estimate small { color: #777783 !important; }
+.trade-panel__heading h2, .trade-confirm__card h3 { color: #24242b !important; }
+.trade-quantity, .trade-estimate strong, .trade-confirm__card p { color: #3b3942 !important; }
+.trade-quantity input { background: #fff !important; color: #24242b !important; }
+.secondary-button { background: #f3f1ec !important; color: #34313a !important; border-color: #e2ded5 !important; }
+.eyebrow { color: #6656c7 !important; }
+.research-status { color: #6656c7 !important; background: #efedfb !important; border-color: #ded9f8 !important; }
+.forecast-values > div, .forecast-metrics > div {
+  background: #f8f7f4 !important; border-color: #e9e6df !important;
+}
+.forecast-values span, .forecast-metrics span { color: #777783 !important; }
+.forecast-values strong, .forecast-metrics strong { color: #24242b !important; }
+.trade-confirm { background: rgba(35, 32, 43, .34) !important; }
+.trade-confirm__card { background: #fff !important; }
+.trade-notice--success { color: #26734d !important; background: #edf7f0 !important; }
+.trade-notice--error { color: #a83e48 !important; background: #fff0f0 !important; }
+/* Tables and chart containers */
+table { color: #34313a; }
+th { color: #777783 !important; }
+td { color: #3b3942; }
+.crypto-terminal article {
+  box-shadow: 0 6px 24px rgba(38, 34, 24, .045);
+}
+.crypto-terminal article:hover { box-shadow: 0 14px 34px rgba(38, 34, 24, .09); }
+/* Reduce visual noise and keep touch targets comfortable */
+button { border-radius: 10px; }
+@media (max-width: 700px) {
+  .dashboard-shell { padding: 14px !important; }
+  .login-shell { padding: 16px !important; }
+}
