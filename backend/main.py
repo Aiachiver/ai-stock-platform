@@ -13,6 +13,7 @@ from ml_model import evaluate_prediction
 from advanced_engine import analyze_stock_v3
 from services.premium_service import get_market_intelligence, get_strategy_backtest, get_portfolio_risk
 from services.trade_service import get_price
+from services.intraday_service import get_intraday_analysis
 from websocket import price_stream
 from auth import create_token, verify_token
 from security import hash_password, verify_password
@@ -199,6 +200,16 @@ def stock(symbol: str):
         return {"ohlc": get_stock_data(normalize_symbol(symbol))}
     except Exception as e:
         return {"error": str(e), "ohlc": []}
+
+
+@app.get("/intraday/{symbol}")
+def intraday_analysis(symbol: str):
+    """Short-horizon intraday research; technical scores are not guarantees."""
+    try:
+        return get_intraday_analysis(normalize_symbol(symbol))
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail="Intraday market data is temporarily unavailable.")
 
 @app.get("/quote/{symbol}")
 def stock_quote(symbol: str):
