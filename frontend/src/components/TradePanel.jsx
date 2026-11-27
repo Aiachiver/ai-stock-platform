@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import Chart from "react-apexcharts";
 import API from "../services/api";
 
 function TradePanel({ symbol, refresh, livePrice }) {
@@ -6,6 +7,24 @@ function TradePanel({ symbol, refresh, livePrice }) {
   const [loading, setLoading] = useState(false);
   const [confirmSide, setConfirmSide] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [priceHistory, setPriceHistory] = useState([]);
+  useEffect(() => {
+    const price = Number(livePrice);
+    if (!Number.isFinite(price) || price <= 0) return;
+    setPriceHistory((current) => [...current, { x: Date.now(), y: price }].slice(-60));
+  }, [livePrice]);
+  const priceChart = useMemo(() => ({
+    chart: { type: "area", background: "transparent", toolbar: { show: false }, animations: { enabled: true, speed: 350, dynamicAnimation: { enabled: true, speed: 350 } }, zoom: { enabled: false } },
+    theme: { mode: "light" },
+    colors: ["#76536f"], stroke: { curve: "smooth", width: 2.5 },
+    fill: { type: "gradient", gradient: { opacityFrom: 0.25, opacityTo: 0.02 } },
+    dataLabels: { enabled: false }, markers: { size: 0, hover: { size: 4 } },
+    xaxis: { type: "datetime", labels: { datetimeUTC: false, style: { colors: "#625967" } } },
+    yaxis: { labels: { formatter: (value) => "$" + Number(value).toFixed(2), style: { colors: "#625967" } } },
+    grid: { borderColor: "#e8ded9", strokeDashArray: 4 },
+    tooltip: { x: { format: "HH:mm:ss" } },
+    noData: { text: "Waiting for live price updates…" }
+  }), []);
   const orderValue = Number(livePrice || 0) * Number(quantity || 0);
   const validQuantity = Number.isInteger(Number(quantity)) && Number(quantity) > 0;
 
@@ -50,6 +69,11 @@ function TradePanel({ symbol, refresh, livePrice }) {
           <p>Practice with virtual funds. No broker is connected and no real order is sent.</p>
         </div>
         <span className="simulation-pill">Paper trading</span>
+      </div>
+
+      <div className="trade-price-chart">
+        <div className="trade-price-chart__heading"><strong>Live price movement</strong><span>{priceHistory.length ? "Last 60 updates" : "Waiting for market data"}</span></div>
+        <Chart type="area" height={190} options={priceChart} series={[{ name: symbol, data: priceHistory }]} />
       </div>
 
       <div className="trade-panel__controls">
