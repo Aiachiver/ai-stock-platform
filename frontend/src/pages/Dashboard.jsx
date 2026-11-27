@@ -47,6 +47,7 @@ function Dashboard() {
   // Logged-in username and update time
   const [username, setUsername] = useState("");
   const [activeView, setActiveView] = useState("dashboard");
+  const [theme, setTheme] = useState(() => localStorage.getItem("tradesight-theme") || "light");
   const [menuOpen, setMenuOpen] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const requestSequence = useRef(0);
@@ -260,6 +261,15 @@ function Dashboard() {
   }, [symbol]);
 
 
+  // Persist the selected appearance across visits.
+  const toggleTheme = () => {
+    setTheme((current) => {
+      const next = current === "light" ? "dark" : "light";
+      localStorage.setItem("tradesight-theme", next);
+      return next;
+    });
+  };
+
   // Logout
   const logout = () => {
     const confirmLogout = window.confirm("Are you sure you want to logout?");
@@ -323,7 +333,7 @@ function Dashboard() {
 
   // Main dashboard
   return (
-    <div className="app-shell dashboard-shell"
+    <div className={`app-shell dashboard-shell theme-${theme}`}
       style={{
         minHeight: "100vh",
         background: "#0b1118",
@@ -346,7 +356,26 @@ function Dashboard() {
       >
         <h1 style={{ margin: 0 }}>📈 AI Trading Dashboard</h1>
 
-        <div style={{ position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
+            title={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
+            style={{
+              background: "var(--surface)",
+              color: "var(--ink)",
+              border: "1px solid var(--line)",
+              borderRadius: 10,
+              padding: "10px 13px",
+              cursor: "pointer",
+              fontSize: 14,
+              fontWeight: 700
+            }}
+          >
+            {theme === "light" ? "🌙 Dark mode" : "☀️ Light mode"}
+          </button>
+          <div style={{ position: "relative" }}>
           <button
             type="button"
             aria-label="Open navigation and account menu"
@@ -434,6 +463,7 @@ function Dashboard() {
               </button>
             </div>
           )}
+          </div>
         </div>
       </div>
 
