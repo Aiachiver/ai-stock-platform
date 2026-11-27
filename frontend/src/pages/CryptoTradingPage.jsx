@@ -27,6 +27,7 @@ export default function CryptoTradingPage() {
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [customExpiryTime, setCustomExpiryTime] = useState("");
   const [customTargetPrice, setCustomTargetPrice] = useState("");
+  const lockedTargetsRef = useRef({ key: "", values: [] });
 
   useEffect(() => {
     let active = true;
@@ -174,7 +175,15 @@ export default function CryptoTradingPage() {
     const erf=x=>{const sign=x<0?-1:1;x=Math.abs(x);const t=1/(1+0.3275911*x);const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return sign*y;};
     const estimate=(target,horizon)=>{const drift=mean*horizon*0.25,hs=Math.max(sigma*Math.sqrt(horizon),1e-8),expected=spot*Math.exp(drift),z=(Math.log(target/spot)-drift)/hs,yes=Math.max(0,Math.min(1,0.5*(1-erf(z/Math.sqrt(2)))));return{target,yes:yes*100,no:(1-yes)*100,spot,expected,horizon};};
     const now=new Date(clockNow),nextSlot=new Date(now);nextSlot.setSeconds(0,0);nextSlot.setMinutes(Math.ceil((now.getMinutes()+1)/5)*5);
-    const standard=[5,10,15].map((labelMinutes,slot)=>{const expiry=new Date(nextSlot.getTime()+slot*5*60000),horizon=Math.max(0.25,(expiry.getTime()-now.getTime())/60000),base=estimate(spot*Math.exp(mean*horizon*0.25+0.5*sigma*Math.sqrt(horizon)),horizon);return{...base,id:slot,labelMinutes,expiryLabel:expiry.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})};});
+    const targetKey=asset.symbol+":"+nextSlot.getTime();
+    if(lockedTargetsRef.current.key!==targetKey){
+      const values=[0,1,2].map(slot=>{
+        const horizon=Math.max(0.25,(nextSlot.getTime()+slot*5*60000-now.getTime())/60000);
+        return Number((spot*Math.exp(mean*horizon*0.25+0.5*sigma*Math.sqrt(horizon))).toFixed(2));
+      });
+      lockedTargetsRef.current={key:targetKey,values};
+    }
+    const standard=[5,10,15].map((labelMinutes,slot)=>{const expiry=new Date(nextSlot.getTime()+slot*5*60000),horizon=Math.max(0.25,(expiry.getTime()-now.getTime())/60000),base=estimate(lockedTargetsRef.current.values[slot],horizon);return{...base,id:slot,labelMinutes,expiryLabel:expiry.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})};});
     let custom=null;
     const target=Number(customTargetPrice);
     if(customExpiryTime&&Number.isFinite(target)&&target>0){
@@ -219,7 +228,7 @@ export default function CryptoTradingPage() {
           </div>
           {binaryMarkets.length?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:12,marginTop:16}}>{binaryMarkets.map(m=><article key={m.id} style={{background:"#f2eee5",color:"#202724",border:"1px solid #d8cbb3",borderRadius:15,padding:16,boxShadow:"0 10px 28px rgba(20,30,25,.08)"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:10}}><span style={{color:"#77786e",fontSize:11,fontWeight:700}}>{m.id === "custom" ? "CUSTOM QUESTION" : `${m.labelMinutes} MIN QUESTION`}</span><span style={{background:"#eee5d5",color:"#475569",padding:"4px 8px",borderRadius:6,fontSize:11}}>{m.id === "custom" ? "CUSTOM TEST" : "LIVE ESTIMATE"}</span></div>
-            <h3 style={{fontSize:17,lineHeight:1.35,minHeight:68,margin:"5px 0 15px"}}>{asset.name} to be priced at {usd(m.target)} or more by {m.expiryLabel}?</h3>
+            <h3 style={{fontSize:17,lineHeight:1.35,minHeight:68,margin:"5px 0 15px"}}>{asset.name} to be priced at {usd(m.target)} or more at {m.expiryLabel}?</h3>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}><div style={{background:"#e5eee7",borderRadius:9,padding:12,textAlign:"center"}}><div style={{color:"#287653",fontSize:11,fontWeight:800}}>YES</div><strong style={{color:"#287653",fontSize:24}}>{m.yes.toFixed(1)}%</strong></div><div style={{background:"#f5e8e5",borderRadius:9,padding:12,textAlign:"center"}}><div style={{color:"#a84f4b",fontSize:11,fontWeight:800}}>NO</div><strong style={{color:"#a84f4b",fontSize:24}}>{m.no.toFixed(1)}%</strong></div></div>
             <div style={{display:"flex",justifyContent:"space-between",gap:8,color:"#77786e",fontSize:11,marginTop:12}}><span>Current: <b style={{color:"#1e293b"}}>{usd(m.spot)}</b></span><span>Expected: <b style={{color:"#1e293b"}}>{usd(m.expected)}</b></span></div>
           </article>)}</div>:<p style={{color:"#d4b56f",fontSize:12,marginTop:16}}>Waiting for enough one-minute candles to calculate estimates.</p>}
