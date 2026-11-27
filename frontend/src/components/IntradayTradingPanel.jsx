@@ -31,13 +31,14 @@ function IntradayTradingPanel({ symbol }) {
   const [timeframe, setTimeframe] = useState(1);
   const activeSymbol = symbol;
   const [lastRefresh, setLastRefresh] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     let active = true;
     const load = async (quiet = false) => {
       if (!quiet && active) setLoading(true);
       try {
-        const response = await API.get(`/intraday/${activeSymbol}`, { timeout: 35000 });
+        const response = await API.get(`/intraday/${activeSymbol}`, { timeout: 15000 });
         if (!active) return;
         setData(response.data);
         setError("");
@@ -50,7 +51,7 @@ function IntradayTradingPanel({ symbol }) {
       }
     };
     load(false);
-    const timer = setInterval(() => load(true), 60000);
+    const timer = setInterval(() => load(true), 20000);
     return () => { active = false; clearInterval(timer); };
   }, [activeSymbol]);
 
@@ -92,7 +93,7 @@ function IntradayTradingPanel({ symbol }) {
         <div>
           <span style={{ color: "#38bdf8", fontSize: 11, fontWeight: 800, letterSpacing: ".12em" }}>INTRADAY MARKET TERMINAL</span>
           <h2 style={{ margin: "6px 0 3px" }}> {activeSymbol} · Stock Market</h2>
-          <span style={{ color: "#94a3b8", fontSize: 12 }}>1-minute provider candles · auto-refresh every 60 seconds</span>
+          <span style={{ color: "#94a3b8", fontSize: 12 }}>1-minute provider candles · refreshes every 20 seconds</span>
         </div>
         <div style={{ textAlign: "right" }}>
           <strong style={{ display: "block", fontSize: 25 }}>{money(data?.current_price)}</strong>
@@ -112,33 +113,42 @@ function IntradayTradingPanel({ symbol }) {
         <Chart options={volumeOptions} series={volumeSeries} type="bar" height={90} />
       </> : <div style={{ padding: 24, color: "#94a3b8" }}>No intraday candles returned by provider.</div>}
 
-      <div style={{ borderTop: "1px solid #263449", marginTop: 15, paddingTop: 17 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <div><h3 style={{ margin: 0 }}>Next 5–30 minute direction</h3><p style={{ margin: "5px 0 0", color: "#94a3b8", fontSize: 12 }}>Technical momentum score · not a calibrated ML probability</p></div>
-          <span style={{ color: "#94a3b8", fontSize: 11 }}>Refreshes with intraday data</span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(145px,1fr))", gap: 10, marginTop: 14 }}>
-          {(data?.horizons || []).map((item) => {
-            const up = item.signal === "BUY";
-            const down = item.signal === "SELL BIAS";
-            const color = up ? "#34d399" : down ? "#f87171" : "#fbbf24";
-            return <div key={item.minutes} style={{ background: "#0b1220", border: `1px solid ${color}55`, borderRadius: 11, padding: 13 }}>
-              <div style={{ color: "#94a3b8", fontSize: 11 }}>{item.minutes} MIN FORECAST</div>
-              <strong style={{ display: "block", color, fontSize: 17, margin: "7px 0" }}>{item.signal}</strong>
-              <div style={{ fontSize: 12, color: "#cbd5e1" }}>UP {item.up_probability_pct}%</div>
-              <div style={{ height: 6, background: "#293548", borderRadius: 8, overflow: "hidden", margin: "7px 0" }}><div style={{ width: `${item.up_probability_pct}%`, height: "100%", background: color }} /></div>
-              <div style={{ fontSize: 12, color: "#cbd5e1" }}>DOWN {item.down_probability_pct}%</div>
-              <p style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.45, margin: "9px 0 0" }}>{item.reason}</p>
-            </div>;
-          })}
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 13, color: "#cbd5e1", fontSize: 12 }}>
-          <span>Trend: <b style={{ color: data?.indicators?.trend === "UP" ? "#34d399" : "#f87171" }}>{data?.indicators?.trend || "—"}</b></span>
-          <span>5m momentum: <b>{data?.indicators?.momentum_5m_pct ?? "—"}%</b></span>
-          <span>Fast EMA: <b>{money(data?.indicators?.ema_fast)}</b></span>
-          <span>Slow EMA: <b>{money(data?.indicators?.ema_slow)}</b></span>
-        </div>
-      </div>
+      {(() => {
+        const horizons = data?.horizons || [];
+        const strongest = horizons.reduce((best, item) =>
+          !best || Math.abs(Number(item.up_probability_pct) - 50) > Math.abs(Number(best.up_probability_pct) - 50) ? item : best, null);
+        const decision = strongest?.signal === "BUY" ? "UP BIAS" : strongest?.signal === "SELL BIAS" ? "DOWN BIAS" : "WAIT";
+        const color = decision === "UP BIAS" ? "#34d399" : decision === "DOWN BIAS" ? "#f87171" : "#fbbf24";
+        return <div style={{ borderTop: "1px solid #263449", marginTop: 15, paddingTop: 17 }}>
+          <div style={{ background: "#0b1220", border: "1px solid #334155", borderRadius: 12, padding: 15 }}>
+            <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 800 }}>STOCK TRADE SIGNAL · EXPERIMENTAL</div>
+            <strong style={{ display: "block", color, fontSize: 24, margin: "7px 0" }}>{strongest ? decision : "WAITING FOR SIGNAL"}</strong>
+            <div style={{ color: "#cbd5e1", fontSize: 12 }}>{strongest ? `Review over the next ${strongest.minutes} minutes · UP ${strongest.up_probability_pct}% · DOWN ${strongest.down_probability_pct}%` : "Signal is unavailable until market data loads."}</div>
+          </div>
+          <button onClick={() => setShowDetails(value => !value)} style={{ width: "100%", marginTop: 10, padding: 10, borderRadius: 8, border: "1px solid #334155", background: "#172033", color: "white", cursor: "pointer", textAlign: "left" }}>{showDetails ? "Hide" : "Show"} detailed 5–30 minute signals {showDetails ? "−" : "+"}</button>
+          {showDetails && <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(145px,1fr))", gap: 10, marginTop: 12 }}>
+              {horizons.map(item => {
+                const up = item.signal === "BUY";
+                const down = item.signal === "SELL BIAS";
+                const itemColor = up ? "#34d399" : down ? "#f87171" : "#fbbf24";
+                return <div key={item.minutes} style={{ background: "#0b1220", border: `1px solid ${itemColor}55`, borderRadius: 10, padding: 12 }}>
+                  <div style={{ color: "#94a3b8", fontSize: 11 }}>{item.minutes} MIN</div>
+                  <strong style={{ display: "block", color: itemColor, margin: "6px 0" }}>{up ? "UP BIAS" : down ? "DOWN BIAS" : "WAIT"}</strong>
+                  <div style={{ color: "#cbd5e1", fontSize: 12 }}>UP {item.up_probability_pct}% · DOWN {item.down_probability_pct}%</div>
+                  <p style={{ color: "#94a3b8", fontSize: 11 }}>{item.reason}</p>
+                </div>;
+              })}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 12, color: "#cbd5e1", fontSize: 12 }}>
+              <span>Trend: <b>{data?.indicators?.trend || "—"}</b></span>
+              <span>5m momentum: <b>{data?.indicators?.momentum_5m_pct ?? "—"}%</b></span>
+              <span>Fast EMA: <b>{money(data?.indicators?.ema_fast)}</b></span>
+              <span>Slow EMA: <b>{money(data?.indicators?.ema_slow)}</b></span>
+            </div>
+          </>}
+        </div>;
+      })()}
       <p style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.55, margin: "15px 0 0" }}>
         {data?.data_note || "Intraday data is supplied by Yahoo Finance and may be delayed or unavailable."} {data?.signal_note || "Signals are experimental and are not financial advice."}
       </p>
