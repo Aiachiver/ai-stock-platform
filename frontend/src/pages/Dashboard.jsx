@@ -520,7 +520,7 @@ function Dashboard() {
 
       {/* QUICK AI DECISION: lightweight forecast; full validation is available in Models */}
       {(() => {
-        const validated = dashboardIntelligence?.prediction;
+        const validated = null;
         const fastSignal = String(dashboardForecast?.signal || "").toUpperCase();
         const finalDecision = validated?.decision;
         const displayDecision = finalDecision
