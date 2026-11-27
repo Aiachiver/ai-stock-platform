@@ -95,14 +95,14 @@ h1, h2, h3, h4 {
 }
 .trade-confirm__card {
   width: min(100%, 430px); padding: 25px; border: 1px solid var(--border);
-  border-radius: 18px; background: #142238; box-shadow: 0 24px 80px rgba(0,0,0,.4);
+  border-radius: 18px; background: #202b2b; box-shadow: 0 24px 80px rgba(0,0,0,.4);
 }
 .trade-confirm__card h3 { margin: 8px 0; font-size: 22px; }
 .trade-confirm__card p { color: var(--muted); font-size: 13px; line-height: 1.6; }
 .trade-confirm__actions { display: flex; gap: 10px; margin-top: 22px; }
 .secondary-button {
   flex: 1; border: 1px solid var(--border); border-radius: 10px;
-  background: #1e304a; color: #e2e8f0; padding: 12px 16px; font-weight: 700;
+  background: #303a32; color: #eee5d5; padding: 12px 16px; font-weight: 700;
 }
 .trade-confirm__actions button:last-child { flex: 1; }
 @media (max-width: 640px) {
@@ -125,7 +125,7 @@ h3 { font-size: clamp(17px, 1.5vw, 20px); }
 .research-panel {
   margin-top: 20px; padding: clamp(18px, 2vw, 26px);
   border: 1px solid var(--border); border-radius: 16px;
-  background: linear-gradient(145deg, #17253a, #111d30);
+  background: linear-gradient(145deg, #202b2b, #151e1e);
   color: #edf2fa;
 }
 .research-panel__top {
@@ -196,3 +196,16 @@ h3 { font-size: clamp(17px, 1.5vw, 20px); }
   .crypto-terminal { padding: 12px !important; }
   .crypto-terminal article { min-width: 0; }
 }
+
+/* Consistent luxury palette and accessible controls across the complete app. */
+:root{--ts-bg:#0b1118;--ts-panel:#182322;--ts-panel-raised:#202b2b;--ts-border:rgba(198,169,107,.22);--ts-gold:#c6a96b;--ts-ivory:#f3eee4;--ts-muted:#aaa18f}
+html,body,#root{min-height:100%;background-color:var(--ts-bg);color:var(--ts-ivory)}
+.app-shell{color:var(--ts-ivory)}
+.app-shell th{color:var(--ts-muted)!important}
+.app-shell input,.app-shell select,.app-shell textarea{background-color:#101918!important;color:var(--ts-ivory)!important;border:1px solid var(--ts-border)!important;border-radius:10px}
+.app-shell input::placeholder,.app-shell textarea::placeholder{color:#918a7c}
+.app-shell button:focus-visible,.app-shell input:focus-visible,.app-shell select:focus-visible{outline:2px solid #d6bd83;outline-offset:3px}
+.login-shell{background:radial-gradient(ellipse at 50% 0%,rgba(198,169,107,.16),transparent 48%),#0b1118!important}
+.login-shell section{background:linear-gradient(145deg,#202b2b,#151e1e)!important;border-color:var(--ts-border)!important;box-shadow:0 28px 80px rgba(0,0,0,.38)!important}
+.dashboard-shell{background:radial-gradient(ellipse at 10% 0%,rgba(198,169,107,.09),transparent 34rem),#0b1118!important}
+@media(max-width:700px){.dashboard-shell{padding:14px!important}.login-shell{padding:16px!important}}
