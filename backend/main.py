@@ -385,6 +385,11 @@ def portfolio_risk(db: Session = Depends(get_db), username: str = Depends(verify
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     await price_stream(websocket, normalize_symbol(symbol))
 
+@app.websocket("/ws/crypto/{symbol}")
+async def crypto_websocket_endpoint(websocket: WebSocket, symbol: str):
+    from websocket import crypto_trade_stream
+    await crypto_trade_stream(websocket, normalize_symbol(symbol))
+
 class LoginData(BaseModel):
     username: str
     password: str
