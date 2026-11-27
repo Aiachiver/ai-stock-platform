@@ -3,6 +3,7 @@ import Chart from "react-apexcharts";
 import API from "../services/api";
 
 const TIMEFRAMES = [1, 5, 15, 30];
+const CRYPTO_ASSETS = [{ label: "Bitcoin", symbol: "BTC-USD" }, { label: "Ethereum", symbol: "ETH-USD" }, { label: "Solana", symbol: "SOL-USD" }, { label: "XRP", symbol: "XRP-USD" }, { label: "Dogecoin", symbol: "DOGE-USD" }, { label: "BNB", symbol: "BNB-USD" }];
 const money = (value) => Number.isFinite(Number(value)) ? "$" + Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 function aggregateCandles(candles, minutes) {
@@ -29,6 +30,9 @@ function IntradayTradingPanel({ symbol }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [timeframe, setTimeframe] = useState(1);
+  const [marketType, setMarketType] = useState("stocks");
+  const [cryptoSymbol, setCryptoSymbol] = useState("BTC-USD");
+  const activeSymbol = marketType === "crypto" ? cryptoSymbol : symbol;
   const [lastRefresh, setLastRefresh] = useState(null);
 
   useEffect(() => {
@@ -36,7 +40,7 @@ function IntradayTradingPanel({ symbol }) {
     const load = async (quiet = false) => {
       if (!quiet && active) setLoading(true);
       try {
-        const response = await API.get(`/intraday/${symbol}`, { timeout: 35000 });
+        const response = await API.get(`/intraday/${activeSymbol}`, { timeout: 35000 });
         if (!active) return;
         setData(response.data);
         setError("");
@@ -51,13 +55,13 @@ function IntradayTradingPanel({ symbol }) {
     load(false);
     const timer = setInterval(() => load(true), 60000);
     return () => { active = false; clearInterval(timer); };
-  }, [symbol]);
+  }, [activeSymbol]);
 
   const candles = useMemo(() => aggregateCandles(data?.candles || [], timeframe), [data, timeframe]);
   const candleSeries = useMemo(() => [{
-    name: symbol,
+    name: activeSymbol,
     data: candles.map((c) => ({ x: new Date(c.time).getTime(), y: [c.open, c.high, c.low, c.close] }))
-  }], [candles, symbol]);
+  }], [candles, activeSymbol]);
   const volumeSeries = useMemo(() => [{
     name: "Volume",
     data: candles.map((c) => ({ x: new Date(c.time).getTime(), y: c.volume || 0 }))
@@ -90,7 +94,7 @@ function IntradayTradingPanel({ symbol }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
           <span style={{ color: "#38bdf8", fontSize: 11, fontWeight: 800, letterSpacing: ".12em" }}>INTRADAY MARKET TERMINAL</span>
-          <h2 style={{ margin: "6px 0 3px" }}> {symbol} · Live-style Price Action</h2>
+          <h2 style={{ margin: "6px 0 3px" }}> {activeSymbol} · {marketType === "crypto" ? "Crypto Market" : "Stock Market"}</h2>
           <span style={{ color: "#94a3b8", fontSize: 12 }}>1-minute provider candles · auto-refresh every 60 seconds</span>
         </div>
         <div style={{ textAlign: "right" }}>
@@ -100,6 +104,8 @@ function IntradayTradingPanel({ symbol }) {
       </div>
 
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "17px 0 8px" }}>
+        <select aria-label="Market type" value={marketType} onChange={(event) => setMarketType(event.target.value)} style={{ background: "#172033", color: "white", border: "1px solid #334155", padding: "8px 10px", borderRadius: 8 }}><option value="stocks">Stocks</option><option value="crypto">Crypto</option></select>
+        {marketType === "crypto" && <select aria-label="Crypto asset" value={cryptoSymbol} onChange={(event) => setCryptoSymbol(event.target.value)} style={{ background: "#172033", color: "white", border: "1px solid #334155", padding: "8px 10px", borderRadius: 8 }}>{CRYPTO_ASSETS.map((asset) => <option key={asset.symbol} value={asset.symbol}>{asset.label} ({asset.symbol})</option>)}</select>}
         <span style={{ color: "#94a3b8", fontSize: 12, marginRight: 4 }}>Chart interval</span>
         {TIMEFRAMES.map((minute) => <button key={minute} onClick={() => setTimeframe(minute)} style={{ border: timeframe === minute ? "1px solid #38bdf8" : "1px solid #334155", background: timeframe === minute ? "#164e63" : "#172033", color: "white", padding: "7px 13px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>{minute}m</button>)}
         <span style={{ color: "#64748b", fontSize: 11, marginLeft: "auto" }}>{lastRefresh ? `Updated ${lastRefresh.toLocaleTimeString()}` : ""}</span>
