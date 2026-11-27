@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from threading import Lock
 
-import yfinance as yf
+from services.quote_service import get_stock_quote
 
 _CACHE_TTL_SECONDS = 10
 _cache = {}
@@ -12,6 +12,7 @@ _cache_lock = Lock()
 
 
 def get_price(symbol: str):
+    """Use the same Yahoo Finance quote snapshot shown in the dashboard."""
     key = symbol.strip().upper()
     now = time.monotonic()
     with _cache_lock:
@@ -20,18 +21,11 @@ def get_price(symbol: str):
             return cached[1]
 
     try:
-        ticker = yf.Ticker(key)
-        # Prefer the latest available one-minute candle for intraday paper fills.
-        data = ticker.history(period="1d", interval="1m", auto_adjust=False)
-        if data is None or data.empty or data["Close"].dropna().empty:
-            # Fallback keeps the paper portfolio usable when intraday data is unavailable.
-            data = ticker.history(period="1d", interval="1d", auto_adjust=False)
-        if data is None or data.empty:
+        quote = get_stock_quote(key)
+        price = quote.get("price") if isinstance(quote, dict) else None
+        if price is None:
             return None
-        closes = data["Close"].dropna()
-        if closes.empty:
-            return None
-        price = float(closes.iloc[-1])
+        price = float(price)
         if price <= 0:
             return None
         with _cache_lock:
