@@ -20,11 +20,7 @@ export default function CryptoTradingPage() {
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
-  const [quantity, setQuantity] = useState(1);
-  const [eventTarget, setEventTarget] = useState("");
   const [eventMinutes, setEventMinutes] = useState(10);
-  const [orderState, setOrderState] = useState({ loading: false, message: "", error: false });
 
   useEffect(() => {
     let active = true;
@@ -91,51 +87,24 @@ export default function CryptoTradingPage() {
     grid: { show: false }, tooltip: { theme: "dark" }
   };
 
-  const placePaperOrder = async (side) => {
-    setOrderState({ loading: true, message: "", error: false });
-    try {
-      const response = await API.post(`/${side.toLowerCase()}/${asset.symbol}`, null, { params: { quantity: Number(quantity) } });
-      if (response.data?.error) throw new Error(response.data.error);
-      setOrderState({ loading: false, message: `${side} paper order recorded: ${quantity} ${asset.ticker} at ${usd(response.data.price)}.`, error: false });
-    } catch (err) {
-      setOrderState({ loading: false, message: err.response?.data?.detail || err.message || "Paper order failed.", error: true });
-    }
-  };
+  const binaryMarkets = useMemo(() => {
+    const closes=(data?.candles||[]).map(c=>Number(c.close)).filter(v=>Number.isFinite(v)&&v>0);
+    if(closes.length<20)return [];
+    const returns=[];for(let i=Math.max(1,closes.length-61);i<closes.length;i++)returns.push(Math.log(closes[i]/closes[i-1]));
+    if(returns.length<15)return [];
+    const mean=returns.reduce((a,b)=>a+b,0)/returns.length,variance=returns.reduce((a,b)=>a+(b-mean)**2,0)/(returns.length-1);
+    const sigma=Math.sqrt(Math.max(variance,1e-12)),spot=closes.at(-1),horizon=Number(eventMinutes),drift=mean*horizon*0.25,expected=spot*Math.exp(drift),hs=Math.max(sigma*Math.sqrt(horizon),1e-8);
+    const erf=x=>{const sign=x<0?-1:1;x=Math.abs(x);const t=1/(1+0.3275911*x);const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return sign*y;};
+    return [-.0025,-.001,0,.001,.0025].map((offset,id)=>{const target=spot*(1+offset),z=(Math.log(target/spot)-drift)/hs,yes=Math.max(0,Math.min(1,.5*(1-erf(z/Math.sqrt(2)))));return{id,target,yes:yes*100,no:(1-yes)*100,spot,expected};});
+  },[data,eventMinutes]);
+  const expiryLabel=new Date(Date.now()+Number(eventMinutes)*60000).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
 
-  const horizons = data?.horizons || [];
-  const strongestSignal = horizons.reduce((best, item) => Math.abs(Number(item.up_probability_pct || 50) - 50) > Math.abs(Number(best?.up_probability_pct || 50) - 50) ? item : best, null);
-  const strongestUp = Number(strongestSignal?.up_probability_pct || 50);
-  const overall = strongestUp >= 60 ? "UP BIAS" : strongestUp <= 40 ? "DOWN BIAS" : "WAIT — NO CLEAR EDGE";
-  const overallColor = overall === "UP BIAS" ? "#34d399" : overall === "DOWN BIAS" ? "#fb7185" : "#fbbf24";
-  const decisionText = overall === "UP BIAS" ? `Upward movement has the stronger technical signal over the next ${strongestSignal?.minutes} minutes.` : overall === "DOWN BIAS" ? `Downward movement has the stronger technical signal over the next ${strongestSignal?.minutes} minutes.` : "Signals are mixed or weak. Waiting is safer than forcing a trade.";
-
-  // Binary-event estimate: probability that the expiry price finishes at/above a user target.
-  // Uses recent 1-minute log returns with a conservative drift shrink; it is not a guarantee.
-  const eventForecast = useMemo(() => {
-    const closes = (data?.candles || []).map(c => Number(c.close)).filter(v => Number.isFinite(v) && v > 0);
-    const target = Number(eventTarget);
-    if (closes.length < 20 || !Number.isFinite(target) || target <= 0) return null;
-    const logReturns = [];
-    for (let i = Math.max(1, closes.length - 61); i < closes.length; i++) logReturns.push(Math.log(closes[i] / closes[i - 1]));
-    if (logReturns.length < 15) return null;
-    const mean = logReturns.reduce((a, b) => a + b, 0) / logReturns.length;
-    const variance = logReturns.reduce((a, b) => a + (b - mean) ** 2, 0) / (logReturns.length - 1);
-    const sigma = Math.sqrt(Math.max(variance, 1e-12));
-    const horizon = Number(eventMinutes);
-    const spot = closes[closes.length - 1];
-    const expected = spot * Math.exp(mean * horizon * 0.25);
-    const horizonSigma = sigma * Math.sqrt(horizon);
-    const z = (Math.log(target / spot) - mean * horizon * 0.25) / Math.max(horizonSigma, 1e-8);
-    const erf = x => { const sign = x < 0 ? -1 : 1; x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); const y = 1 - (((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x); return sign*y; };
-    const yes = Math.max(0, Math.min(1, 0.5 * (1 - erf(z / Math.sqrt(2)))));
-    return { spot, expected, yes: yes * 100, no: (1 - yes) * 100, sigma: sigma * 100, samples: logReturns.length };
-  }, [data, eventTarget, eventMinutes]);
 
   return (
     <main style={{ minHeight: "100vh", background: "#080f1d", color: "#e5edf8", padding: "clamp(12px,2vw,26px)", boxSizing: "border-box" }}>
       <div style={{ maxWidth: 1500, margin: "0 auto" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "center", marginBottom: 20 }}>
-          <div><div style={{ color: "#38bdf8", fontSize: 11, fontWeight: 900, letterSpacing: ".16em" }}>TRADESIGHT AI / DIGITAL ASSETS</div><h1 style={{ margin: "6px 0", fontSize: 28 }}>Crypto Trading Terminal</h1><p style={{ color: "#94a3b8", margin: 0 }}>24/7 crypto market research · paper trading only</p></div>
+          <div><div style={{ color: "#38bdf8", fontSize: 11, fontWeight: 900, letterSpacing: ".16em" }}>TRADESIGHT AI / DIGITAL ASSETS</div><h1 style={{ margin: "6px 0", fontSize: 28 }}>Crypto Prediction Markets</h1><p style={{ color: "#94a3b8", margin: 0 }}>YES / NO price-event forecasts · live market data</p></div>
           <div style={{ background: "#142237", border: `1px solid ${overallColor}66`, padding: "12px 16px", borderRadius: 12, minWidth: 220 }}><div style={{ color: "#94a3b8", fontSize: 11 }}>CURRENT AI VIEW</div><b style={{ color: overallColor, fontSize: 16 }}>{data ? overall : "CALCULATING…"}</b><div style={{ color: "#94a3b8", fontSize: 11, marginTop: 5 }}>{data && strongestSignal ? `Strongest window: ${strongestSignal.minutes} min` : "Waiting for market data"}</div></div>
         </header>
 
@@ -143,62 +112,25 @@ export default function CryptoTradingPage() {
           {ASSETS.map(item => <button key={item.symbol} onClick={() => setAsset(item)} style={{ textAlign: "left", background: asset.symbol === item.symbol ? "#17304a" : "#111c2e", border: asset.symbol === item.symbol ? `1px solid ${item.color}` : "1px solid #263449", color: "white", borderRadius: 11, padding: 12, cursor: "pointer" }}><span style={{ color: item.color, fontWeight: 900 }}>{item.ticker}</span><span style={{ display: "block", color: "#94a3b8", fontSize: 11, marginTop: 4 }}>{item.name}</span></button>)}
         </nav>
 
-        <section style={{ display: "grid", gridTemplateColumns: "minmax(0,2fr) minmax(260px,1fr)", gap: 14, marginBottom: 15 }}>
-          <div style={{ background: "linear-gradient(140deg,#14243a,#0d1728)", border: "1px solid #2b405b", borderRadius: 15, padding: 17 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><div><span style={{ color: "#94a3b8", fontSize: 11 }}>SELECTED MARKET</span><h2 style={{ margin: "5px 0" }}>{asset.name} <span style={{ color: "#94a3b8", fontSize: 14 }}>{asset.ticker}/USD</span></h2></div><div style={{ textAlign: "right" }}><strong style={{ fontSize: 27 }}>{usd(data?.current_price)}</strong><div style={{ color: Number(data?.change_pct) >= 0 ? "#34d399" : "#fb7185", fontSize: 13 }}>{data?.change_pct == null ? "—" : `${data.change_pct > 0 ? "+" : ""}${data.change_pct}% today`}</div></div></div>
-            <div style={{ display: "flex", gap: 7, flexWrap: "wrap", margin: "14px 0" }}>{[1,5,15,30].map(m => <button key={m} onClick={() => setTimeframe(m)} style={{ padding: "7px 13px", borderRadius: 8, border: timeframe === m ? "1px solid #38bdf8" : "1px solid #34445b", background: timeframe === m ? "#164e63" : "#172235", color: "white", cursor: "pointer" }}>{m}m candles</button>)}<span style={{ marginLeft: "auto", color: "#64748b", fontSize: 11, alignSelf: "center" }}>{updatedAt ? `${refreshing ? "Updating… · " : "Updated "}${updatedAt.toLocaleTimeString()}` : ""}</span></div>
-            {loading && !data ? <div style={{ padding: 60, textAlign: "center" }}>Loading crypto market data…</div> : error && !data ? <div style={{ padding: 25, color: "#fbbf24" }}>{error}</div> : candles.length ? <><Chart type="candlestick" height={340} options={chartOptions} series={chartSeries}/><div style={{ color: "#94a3b8", fontSize: 10, letterSpacing: ".1em" }}>VOLUME</div><Chart type="bar" height={85} options={volumeOptions} series={volumeSeries}/></> : <div style={{ padding: 30 }}>No candles received.</div>}
-            <p style={{ color: "#8192a9", fontSize: 11, marginBottom: 0 }}>Auto-refresh: every 20 seconds · candles update when the data provider publishes new market data.</p>
+        <section style={{marginBottom:15}}>
+          <div style={{background:"linear-gradient(140deg,#14243a,#0d1728)",border:"1px solid #2b405b",borderRadius:15,padding:17}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><span style={{color:"#94a3b8",fontSize:11}}>SELECTED MARKET</span><h2 style={{margin:"5px 0"}}>{asset.name} <span style={{color:"#94a3b8",fontSize:14}}>{asset.ticker}/USD</span></h2></div><div style={{textAlign:"right"}}><strong style={{fontSize:27}}>{usd(data?.current_price)}</strong><div style={{color:Number(data?.change_pct)>=0?"#34d399":"#fb7185",fontSize:13}}>{data?.change_pct==null?"—":`${data.change_pct>0?"+":""}${data.change_pct}% today`}</div></div></div>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap",margin:"14px 0"}}>{[1,5,15,30].map(m=><button key={m} onClick={()=>setTimeframe(m)} style={{padding:"7px 13px",borderRadius:8,border:timeframe===m?"1px solid #38bdf8":"1px solid #34445b",background:timeframe===m?"#164e63":"#172235",color:"white",cursor:"pointer"}}>{m}m candles</button>)}<span style={{marginLeft:"auto",color:"#64748b",fontSize:11,alignSelf:"center"}}>{updatedAt?`${refreshing?"Updating… · ":"Updated "}${updatedAt.toLocaleTimeString()}`:""}</span></div>
+            {loading&&!data?<div style={{padding:60,textAlign:"center"}}>Loading crypto market data…</div>:error&&!data?<div style={{padding:25,color:"#fbbf24"}}>{error}</div>:candles.length?<><Chart type="candlestick" height={340} options={chartOptions} series={chartSeries}/><div style={{color:"#94a3b8",fontSize:10,letterSpacing:".1em"}}>VOLUME</div><Chart type="bar" height={85} options={volumeOptions} series={volumeSeries}/></>:<div style={{padding:30}}>No candles received.</div>}
+            <p style={{color:"#8192a9",fontSize:11,marginBottom:0}}>Auto-refresh: every 20 seconds · candles update when the data provider publishes new market data.</p>
           </div>
-
-          <aside style={{ background: "#111c2e", border: "1px solid #263449", borderRadius: 15, padding: 17 }}>
-            <div style={{ color: "#38bdf8", fontSize: 11, fontWeight: 800, letterSpacing: ".12em" }}>PAPER ORDER TICKET</div><h3 style={{ margin: "7px 0 4px" }}>Practice trade</h3><p style={{ color: "#94a3b8", fontSize: 12, lineHeight: 1.5 }}>Orders use your TradeSight virtual balance. No real crypto is purchased.</p>
-            <label style={{ display: "block", color: "#94a3b8", fontSize: 12, margin: "18px 0 6px" }}>Quantity ({asset.ticker})</label><input type="number" min="1" step="1" value={quantity} onChange={e => setQuantity(Math.max(1, Number(e.target.value)))} style={{ width: "100%", boxSizing: "border-box", background: "#081321", border: "1px solid #34445b", borderRadius: 8, padding: 11, color: "white" }}/>
-            <div style={{ background: "#081321", borderRadius: 9, padding: 12, margin: "12px 0", color: "#94a3b8", fontSize: 12 }}>Estimated order value <b style={{ display: "block", color: "white", fontSize: 18, marginTop: 5 }}>{data ? usd(data.current_price * quantity) : "—"}</b></div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}><button disabled={!data || orderState.loading} onClick={() => placePaperOrder("BUY")} style={{ border: 0, borderRadius: 9, padding: 12, color: "white", background: "#059669", fontWeight: 800, cursor: "pointer" }}>Paper BUY</button><button disabled={!data || orderState.loading} onClick={() => placePaperOrder("SELL")} style={{ border: 0, borderRadius: 9, padding: 12, color: "white", background: "#e11d48", fontWeight: 800, cursor: "pointer" }}>Paper SELL</button></div>
-            {orderState.message && <p style={{ color: orderState.error ? "#fda4af" : "#6ee7b7", fontSize: 12, lineHeight: 1.5 }}>{orderState.message}</p>}
-            <div style={{ borderTop: "1px solid #29394f", marginTop: 18, paddingTop: 15 }}><div style={{ color: "#94a3b8", fontSize: 11 }}>TECHNICAL SNAPSHOT</div><p>Trend: <b style={{ color: data?.indicators?.trend === "UP" ? "#34d399" : "#fb7185" }}>{data?.indicators?.trend || "—"}</b></p><p>5m momentum: <b>{data?.indicators?.momentum_5m_pct ?? "—"}%</b></p><p>Fast EMA: <b>{usd(data?.indicators?.ema_fast)}</b></p><p>Slow EMA: <b>{usd(data?.indicators?.ema_slow)}</b></p></div>
-          </aside>
         </section>
 
-        <section style={{ background: "linear-gradient(140deg,#13243a,#0b1728)", border: "1px solid #31506b", borderRadius: 15, padding: 18, marginBottom: 15 }}>
-          <div style={{ color: "#38bdf8", fontSize: 11, fontWeight: 900, letterSpacing: ".12em" }}>BINARY EVENT PREDICTOR</div>
-          <h2 style={{ margin: "7px 0" }}>{asset.name} to be priced at target or more?</h2>
-          <p style={{ color: "#94a3b8", fontSize: 12, marginTop: 0 }}>Set a target price and expiry like prediction-market questions. This estimates the chance the price finishes at/above your target at expiry.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
-            <label style={{ color: "#94a3b8", fontSize: 12 }}>Target price (USD)<input type="number" min="0" step="any" value={eventTarget} onChange={e => setEventTarget(e.target.value)} placeholder={data ? String(data.current_price) : "e.g. 61528"} style={{ display: "block", width: "100%", boxSizing: "border-box", marginTop: 6, padding: 11, borderRadius: 8, border: "1px solid #34445b", background: "#081321", color: "white" }}/></label>
-            <label style={{ color: "#94a3b8", fontSize: 12 }}>Expiry window<select value={eventMinutes} onChange={e => setEventMinutes(Number(e.target.value))} style={{ display: "block", width: "100%", marginTop: 6, padding: 11, borderRadius: 8, border: "1px solid #34445b", background: "#081321", color: "white" }}>{[5,10,15,30,60,120].map(m => <option key={m} value={m}>{m} minutes</option>)}</select></label>
-          </div>
-          {eventForecast ? <div style={{ marginTop: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div style={{ background: "#103326", border: "1px solid #1d8058", borderRadius: 10, padding: 14 }}><div style={{ color: "#86efac", fontSize: 12 }}>YES · at/above target</div><strong style={{ color: "#6ee7b7", fontSize: 27 }}>{eventForecast.yes.toFixed(1)}%</strong></div>
-              <div style={{ background: "#3a2029", border: "1px solid #8c3548", borderRadius: 10, padding: 14 }}><div style={{ color: "#fda4af", fontSize: 12 }}>NO · below target</div><strong style={{ color: "#fda4af", fontSize: 27 }}>{eventForecast.no.toFixed(1)}%</strong></div>
-            </div>
-            <div style={{ display: "flex", gap: 18, flexWrap: "wrap", color: "#cbd5e1", fontSize: 12, marginTop: 12 }}><span>Current: <b>{usd(eventForecast.spot)}</b></span><span>Model estimate at expiry: <b>{usd(eventForecast.expected)}</b></span><span>1m volatility: <b>{eventForecast.sigma.toFixed(3)}%</b></span></div>
-            <p style={{ color: "#fbbf24", fontSize: 11, lineHeight: 1.5, marginBottom: 0 }}>Experimental statistical estimate from the latest {eventForecast.samples} one-minute returns. It is not historically calibrated yet; provider delays, sudden news and market jumps can make it wrong. Not financial advice.</p>
-          </div> : <p style={{ color: "#fbbf24", fontSize: 12 }}>Waiting for enough candle data and a valid target price.</p>}
+        <section style={{background:"linear-gradient(140deg,#13243a,#0b1728)",border:"1px solid #31506b",borderRadius:15,padding:18,marginBottom:15}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap"}}><div><div style={{color:"#38bdf8",fontSize:11,fontWeight:900,letterSpacing:".12em"}}>CRYPTO PRICE PREDICTION MARKETS</div><h2 style={{margin:"7px 0"}}>Will {asset.name} reach this price?</h2><p style={{color:"#94a3b8",fontSize:12,margin:0}}>YES / NO price-event estimates, like your screenshot.</p></div><div style={{display:"flex",gap:6}}>{[5,10,15,30].map(m=><button key={m} onClick={()=>setEventMinutes(m)} style={{padding:"9px 13px",borderRadius:8,border:eventMinutes===m?"1px solid #34d399":"1px solid #34445b",background:eventMinutes===m?"#123b32":"#172235",color:"white",cursor:"pointer"}}>{m} min</button>)}</div></div>
+          {binaryMarkets.length?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:12,marginTop:16}}>{binaryMarkets.map(m=><article key={m.id} style={{background:"#f8fafc",color:"#111827",border:"1px solid #dbe2ea",borderRadius:13,padding:15}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:10}}><span style={{color:"#64748b",fontSize:11,fontWeight:700}}>{eventMinutes} MINUTE QUESTION</span><span style={{background:"#e2e8f0",color:"#475569",padding:"4px 8px",borderRadius:6,fontSize:11}}>LIVE ESTIMATE</span></div>
+            <h3 style={{fontSize:17,lineHeight:1.35,minHeight:68,margin:"5px 0 15px"}}>{asset.name} to be priced at {usd(m.target)} or more at {expiryLabel}?</h3>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}><div style={{background:"#e8f5ed",borderRadius:9,padding:12,textAlign:"center"}}><div style={{color:"#24834c",fontSize:11,fontWeight:800}}>YES</div><strong style={{color:"#24834c",fontSize:24}}>{m.yes.toFixed(1)}%</strong></div><div style={{background:"#fdecec",borderRadius:9,padding:12,textAlign:"center"}}><div style={{color:"#c43d3d",fontSize:11,fontWeight:800}}>NO</div><strong style={{color:"#c43d3d",fontSize:24}}>{m.no.toFixed(1)}%</strong></div></div>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,color:"#64748b",fontSize:11,marginTop:12}}><span>Current: <b style={{color:"#1e293b"}}>{usd(m.spot)}</b></span><span>Expected: <b style={{color:"#1e293b"}}>{usd(m.expected)}</b></span></div>
+          </article>)}</div>:<p style={{color:"#fbbf24",fontSize:12,marginTop:16}}>Waiting for enough one-minute candles to calculate estimates.</p>}
+          <p style={{color:"#fbbf24",fontSize:11,lineHeight:1.5,marginBottom:0,marginTop:14}}>Experimental estimates from recent one-minute price changes; not calibrated market odds or guaranteed outcomes.</p>
         </section>
-
-        <section style={{ background: "#111c2e", border: "1px solid #263449", borderRadius: 15, padding: 17 }}>
-          <div style={{ background: "#091321", border: `1px solid ${overallColor}66`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-            <div style={{ color: "#94a3b8", fontSize: 11, letterSpacing: ".12em", fontWeight: 800 }}>TRADE SIGNAL · PAPER TRADING</div>
-            <div style={{ color: overallColor, fontSize: 25, fontWeight: 900, margin: "7px 0" }}>{data ? overall : "WAITING FOR DATA"}</div>
-            <p style={{ color: "#d5deeb", margin: 0, lineHeight: 1.5 }}>{data ? decisionText : "Market data is loading."}</p>
-            {data?.is_stale && <p style={{ color: "#fbbf24", fontSize: 11, margin: "8px 0 0" }}>Showing cached data ({data.data_age_seconds}s old) while a fresh update loads.</p>}
-            <div style={{ display: "flex", gap: 18, flexWrap: "wrap", color: "#94a3b8", fontSize: 12, marginTop: 10 }}>
-              <span>Review window: <b style={{ color: "white" }}>{strongestSignal ? `${strongestSignal.minutes} minutes` : "—"}</b></span>
-              <span>UP score: <b style={{ color: "white" }}>{strongestSignal ? `${strongestUp.toFixed(1)}%` : "—"}</b></span>
-              <span>DOWN score: <b style={{ color: "white" }}>{strongestSignal ? `${Number(strongestSignal.down_probability_pct).toFixed(1)}%` : "—"}</b></span>
-            </div>
-          </div>
-          <button onClick={() => setShowDetails(v => !v)} style={{ width: "100%", marginTop: 12, padding: "11px 14px", borderRadius: 9, border: "1px solid #34445b", background: "#172235", color: "#d5deeb", textAlign: "left", cursor: "pointer" }}>{showDetails ? "Hide" : "Show"} detailed signals (5–30 min) {showDetails ? "−" : "+"}</button>
-          {showDetails && <div style={{ marginTop: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 10, marginTop: 15 }}>
-            {horizons.map(h => { const color = h.signal === "BUY" ? "#34d399" : h.signal === "SELL BIAS" ? "#fb7185" : "#fbbf24"; return <article key={h.minutes} style={{ background: "#091321", border: `1px solid ${color}66`, borderRadius: 11, padding: 13 }}><div style={{ color: "#94a3b8", fontSize: 11 }}>NEXT {h.minutes} MINUTES</div><strong style={{ display: "block", color, fontSize: 19, margin: "7px 0" }}>{h.signal === "BUY" ? "UP BIAS" : h.signal === "SELL BIAS" ? "DOWN BIAS" : "WAIT"}</strong><div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}><span>UP SCORE {h.up_probability_pct}%</span><span>DOWN SCORE {h.down_probability_pct}%</span></div><div style={{ height: 7, background: "#25344a", borderRadius: 9, overflow: "hidden", marginTop: 8 }}><div style={{ height: "100%", width: `${h.up_probability_pct}%`, background: color }}/></div><p style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.45 }}>{h.reason}</p></article>; })}
-          </div>
-          <p style={{ color: "#8192a9", fontSize: 11, lineHeight: 1.5, marginBottom: 0 }}>Technical indicator scores are experimental, not guaranteed predictions. Use each window as a review horizon, not an exact promise.</p>
-          </div>}
-</section>
       </div>
     </main>
   );
