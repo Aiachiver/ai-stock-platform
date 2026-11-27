@@ -24,6 +24,7 @@ export default function CryptoTradingPage() {
   const [streamStatus, setStreamStatus] = useState("connecting");
   const previousLivePrice = useRef(null);
   const [liveDirection, setLiveDirection] = useState("flat");
+  const [clockNow, setClockNow] = useState(() => Date.now());
 
   useEffect(() => {
     let active = true;
@@ -108,6 +109,8 @@ export default function CryptoTradingPage() {
     };
   }, [asset]);
 
+  useEffect(() => { const timer = setInterval(() => setClockNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+
   const candles = useMemo(() => {
     const raw = data?.candles || [];
     if (timeframe === 1) return raw;
@@ -154,26 +157,25 @@ export default function CryptoTradingPage() {
 
   const binaryMarkets = useMemo(() => {
     const closes=(data?.candles||[]).map(c=>Number(c.close)).filter(v=>Number.isFinite(v)&&v>0);
-    if(closes.length<20)return [];
+    const spot=Number(livePrice ?? data?.current_price ?? closes.at(-1));
+    if(!Number.isFinite(spot)||spot<=0||closes.length<20)return [];
     const returns=[];for(let i=Math.max(1,closes.length-61);i<closes.length;i++)returns.push(Math.log(closes[i]/closes[i-1]));
     if(returns.length<15)return [];
     const mean=returns.reduce((a,b)=>a+b,0)/returns.length,variance=returns.reduce((a,b)=>a+(b-mean)**2,0)/(returns.length-1);
-    const sigma=Math.sqrt(Math.max(variance,1e-12)),spot=closes.at(-1);
+    const sigma=Math.sqrt(Math.max(variance,1e-12));
     const erf=x=>{const sign=x<0?-1:1;x=Math.abs(x);const t=1/(1+0.3275911*x);const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return sign*y;};
-    const now=new Date(),nextSlot=new Date(now);nextSlot.setSeconds(0,0);nextSlot.setMinutes(Math.ceil((now.getMinutes()+1)/5)*5);
-    const markets=[];
-    for(let slot=0;slot<3;slot++){
+    const now=new Date(clockNow),nextSlot=new Date(now);nextSlot.setSeconds(0,0);nextSlot.setMinutes(Math.ceil((now.getMinutes()+1)/5)*5);
+    return [5,10,15].map((labelMinutes,slot)=>{
       const expiry=new Date(nextSlot.getTime()+slot*5*60000);
-      const horizon=Math.max(1,(expiry.getTime()-now.getTime())/60000);
-      const drift=mean*horizon*0.25,expected=spot*Math.exp(drift),hs=Math.max(sigma*Math.sqrt(horizon),1e-8);
-      const expiryLabel=expiry.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
-      [-.0025,-.001,0,.001,.0025].forEach((offset,id)=>{
-        const target=spot*(1+offset),z=(Math.log(target/spot)-drift)/hs,yes=Math.max(0,Math.min(1,.5*(1-erf(z/Math.sqrt(2)))));
-        markets.push({id:`${slot}-${id}`,target,yes:yes*100,no:(1-yes)*100,spot,expected,horizon,expiryLabel});
-      });
-    }
-    return markets;
-  },[data]);
+      const horizon=Math.max(0.25,(expiry.getTime()-now.getTime())/60000);
+      const drift=mean*horizon*0.25,hs=Math.max(sigma*Math.sqrt(horizon),1e-8);
+      const expected=spot*Math.exp(drift);
+      const target=spot*Math.exp(drift+0.5*hs);
+      const z=(Math.log(target/spot)-drift)/hs;
+      const yes=Math.max(0,Math.min(1,0.5*(1-erf(z/Math.sqrt(2)))));
+      return {id:slot,target,yes:yes*100,no:(1-yes)*100,spot,expected,horizon,labelMinutes,expiryLabel:expiry.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})};
+    });
+  },[data,livePrice,clockNow]);
 
 
   return (
@@ -197,10 +199,10 @@ export default function CryptoTradingPage() {
         </section>
 
         <section style={{background:"linear-gradient(140deg,#13243a,#0b1728)",border:"1px solid #31506b",borderRadius:15,padding:18,marginBottom:15}}>
-          <div><div style={{color:"#38bdf8",fontSize:11,fontWeight:900,letterSpacing:".12em"}}>CRYPTO PRICE PREDICTION MARKETS</div><h2 style={{margin:"7px 0"}}>Upcoming 5-minute questions</h2><p style={{color:"#94a3b8",fontSize:12,margin:0}}>Expiry times are aligned to the clock: :00, :05, :10, :15, :20, :25…</p></div>
+          <div><div style={{color:"#38bdf8",fontSize:11,fontWeight:900,letterSpacing:".12em"}}>CRYPTO PRICE PREDICTION MARKETS</div><h2 style={{margin:"7px 0"}}>3 upcoming price questions</h2><p style={{color:"#94a3b8",fontSize:12,margin:0}}>Only 3 cards · refreshes every 5 minutes; the 15-minute card rolls down to 10 minutes, then a new 15-minute card appears.</p></div>
           {binaryMarkets.length?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:12,marginTop:16}}>{binaryMarkets.map(m=><article key={m.id} style={{background:"#f8fafc",color:"#111827",border:"1px solid #dbe2ea",borderRadius:13,padding:15}}>
-            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:10}}><span style={{color:"#64748b",fontSize:11,fontWeight:700}}>{m.horizon.toFixed(0)} MIN QUESTION</span><span style={{background:"#e2e8f0",color:"#475569",padding:"4px 8px",borderRadius:6,fontSize:11}}>LIVE ESTIMATE</span></div>
-            <h3 style={{fontSize:17,lineHeight:1.35,minHeight:68,margin:"5px 0 15px"}}>{asset.name} to be priced at {usd(m.target)} or more at {m.expiryLabel}?</h3>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginBottom:10}}><span style={{color:"#64748b",fontSize:11,fontWeight:700}}>{m.labelMinutes} MIN QUESTION</span><span style={{background:"#e2e8f0",color:"#475569",padding:"4px 8px",borderRadius:6,fontSize:11}}>LIVE ESTIMATE</span></div>
+            <h3 style={{fontSize:17,lineHeight:1.35,minHeight:68,margin:"5px 0 15px"}}>{asset.name} to be priced at {usd(m.target)} or more in {m.labelMinutes} minutes (at {m.expiryLabel})?</h3>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}><div style={{background:"#e8f5ed",borderRadius:9,padding:12,textAlign:"center"}}><div style={{color:"#24834c",fontSize:11,fontWeight:800}}>YES</div><strong style={{color:"#24834c",fontSize:24}}>{m.yes.toFixed(1)}%</strong></div><div style={{background:"#fdecec",borderRadius:9,padding:12,textAlign:"center"}}><div style={{color:"#c43d3d",fontSize:11,fontWeight:800}}>NO</div><strong style={{color:"#c43d3d",fontSize:24}}>{m.no.toFixed(1)}%</strong></div></div>
             <div style={{display:"flex",justifyContent:"space-between",gap:8,color:"#64748b",fontSize:11,marginTop:12}}><span>Current: <b style={{color:"#1e293b"}}>{usd(m.spot)}</b></span><span>Expected: <b style={{color:"#1e293b"}}>{usd(m.expected)}</b></span></div>
           </article>)}</div>:<p style={{color:"#fbbf24",fontSize:12,marginTop:16}}>Waiting for enough one-minute candles to calculate estimates.</p>}
