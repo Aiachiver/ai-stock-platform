@@ -139,7 +139,17 @@ export default function CryptoTradingPage() {
         </section>
 
         <section style={{ background: "#111c2e", border: "1px solid #263449", borderRadius: 15, padding: 17 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}><div><div style={{ color: "#38bdf8", fontSize: 11, fontWeight: 800, letterSpacing: ".12em" }}>AI HORIZON MONITOR</div><h2 style={{ margin: "5px 0" }}>Where could price move next?</h2><p style={{ color: "#94a3b8", margin: 0, fontSize: 12 }}>5, 10, 15, 20, 25 and 30-minute directional research</p></div><div style={{ color: "#fbbf24", fontSize: 11 }}>Experimental · heuristic · not calibrated ML</div></div>
+          <div style={{ background: "#091321", border: `1px solid ${overallColor}66`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <div style={{ color: "#94a3b8", fontSize: 11, letterSpacing: ".12em", fontWeight: 800 }}>SIMPLE TRADE DECISION · PAPER TRADING</div>
+            <div style={{ color: overallColor, fontSize: 25, fontWeight: 900, margin: "7px 0" }}>{data ? overall : "WAITING FOR DATA"}</div>
+            <p style={{ color: "#d5deeb", margin: 0, lineHeight: 1.5 }}>{data ? decisionText : "Market data is loading."}</p>
+            <div style={{ display: "flex", gap: 18, flexWrap: "wrap", color: "#94a3b8", fontSize: 12, marginTop: 10 }}>
+              <span>Review window: <b style={{ color: "white" }}>{strongestSignal ? `${strongestSignal.minutes} minutes` : "—"}</b></span>
+              <span>UP score: <b style={{ color: "white" }}>{strongestSignal ? `${strongestUp.toFixed(1)}%` : "—"}</b></span>
+              <span>DOWN score: <b style={{ color: "white" }}>{strongestSignal ? `${Number(strongestSignal.down_probability_pct).toFixed(1)}%` : "—"}</b></span>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}><div><div style={{ color: "#38bdf8", fontSize: 11, fontWeight: 800, letterSpacing: ".12em" }}>AI HORIZON MONITOR</div><h2 style={{ margin: "5px 0" }}>Where could price move next?</h2><p style={{ color: "#94a3b8", margin: 0, fontSize: 12 }}>Each card shows the current technical bias for that time window.</p></div><div style={{ color: "#fbbf24", fontSize: 11 }}>Experimental technical score · not a guaranteed forecast</div></div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 10, marginTop: 15 }}>
             {horizons.map(h => { const color = h.signal === "BUY" ? "#34d399" : h.signal === "SELL BIAS" ? "#fb7185" : "#fbbf24"; return <article key={h.minutes} style={{ background: "#091321", border: `1px solid ${color}66`, borderRadius: 11, padding: 13 }}><div style={{ color: "#94a3b8", fontSize: 11 }}>NEXT {h.minutes} MINUTES</div><strong style={{ display: "block", color, fontSize: 19, margin: "7px 0" }}>{h.signal === "BUY" ? "UP BIAS" : h.signal === "SELL BIAS" ? "DOWN BIAS" : "WAIT"}</strong><div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}><span>UP SCORE {h.up_probability_pct}%</span><span>DOWN SCORE {h.down_probability_pct}%</span></div><div style={{ height: 7, background: "#25344a", borderRadius: 9, overflow: "hidden", marginTop: 8 }}><div style={{ height: "100%", width: `${h.up_probability_pct}%`, background: color }}/></div><p style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.45 }}>{h.reason}</p></article>; })}
           </div>
