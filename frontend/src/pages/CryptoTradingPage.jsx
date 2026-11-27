@@ -105,7 +105,6 @@ export default function CryptoTradingPage() {
       <div style={{ maxWidth: 1500, margin: "0 auto" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "center", marginBottom: 20 }}>
           <div><div style={{ color: "#38bdf8", fontSize: 11, fontWeight: 900, letterSpacing: ".16em" }}>TRADESIGHT AI / DIGITAL ASSETS</div><h1 style={{ margin: "6px 0", fontSize: 28 }}>Crypto Prediction Markets</h1><p style={{ color: "#94a3b8", margin: 0 }}>YES / NO price-event forecasts · live market data</p></div>
-          <div style={{ background: "#142237", border: `1px solid ${overallColor}66`, padding: "12px 16px", borderRadius: 12, minWidth: 220 }}><div style={{ color: "#94a3b8", fontSize: 11 }}>CURRENT AI VIEW</div><b style={{ color: overallColor, fontSize: 16 }}>{data ? overall : "CALCULATING…"}</b><div style={{ color: "#94a3b8", fontSize: 11, marginTop: 5 }}>{data && strongestSignal ? `Strongest window: ${strongestSignal.minutes} min` : "Waiting for market data"}</div></div>
         </header>
 
         <nav style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 9, marginBottom: 16 }}>
