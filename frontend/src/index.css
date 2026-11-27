@@ -301,3 +301,79 @@ td { color: #514956 !important; }
 .theme-dark.dashboard-shell textarea::placeholder {
   color: #8794a7 !important;
 }
+
+
+/* Light-theme readability pass: stronger text contrast and chart labels. */
+.dashboard-shell.theme-light {
+  --muted: #625967;
+  --ink: #292431;
+}
+.dashboard-shell.theme-light p,
+.dashboard-shell.theme-light small,
+.dashboard-shell.theme-light label,
+.dashboard-shell.theme-light td,
+.dashboard-shell.theme-light th,
+.dashboard-shell.theme-light .trade-panel__heading p,
+.dashboard-shell.theme-light .trade-estimate span,
+.dashboard-shell.theme-light .trade-estimate small {
+  color: #514956 !important;
+}
+.dashboard-shell.theme-light .eyebrow,
+.dashboard-shell.theme-light .crypto-terminal [style*="letterSpacing"] {
+  color: #86512d !important;
+}
+.dashboard-shell.theme-light .crypto-terminal p,
+.dashboard-shell.theme-light .crypto-terminal span:not(.apexcharts-text),
+.dashboard-shell.theme-light .crypto-terminal label {
+  color: #514956 !important;
+}
+.dashboard-shell.theme-light .crypto-terminal h1,
+.dashboard-shell.theme-light .crypto-terminal h2,
+.dashboard-shell.theme-light .crypto-terminal h3,
+.dashboard-shell.theme-light .crypto-terminal strong {
+  color: #292431 !important;
+}
+.dashboard-shell.theme-light .crypto-terminal button {
+  color: #fff !important;
+}
+.dashboard-shell.theme-light .crypto-terminal input {
+  color: #292431 !important;
+}
+.dashboard-shell.theme-light .crypto-terminal article {
+  color: #292431 !important;
+}
+.dashboard-shell.theme-light .trade-price-chart {
+  background: #fbf8f5;
+  border: 1px solid #e8ded9;
+  border-radius: 14px;
+  padding: 12px 14px 4px;
+  margin: 14px 0 18px;
+}
+.dashboard-shell.theme-light .trade-price-chart__heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #292431;
+  font-size: 13px;
+}
+.dashboard-shell.theme-light .trade-price-chart__heading span {
+  color: #625967 !important;
+  font-size: 11px;
+}
+.dashboard-shell.theme-dark .trade-price-chart {
+  background: #101925;
+  border: 1px solid #2b394a;
+  border-radius: 14px;
+  padding: 12px 14px 4px;
+  margin: 14px 0 18px;
+}
+.dashboard-shell.theme-dark .trade-price-chart__heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #edf2fa;
+  font-size: 13px;
+}
+.dashboard-shell.theme-dark .trade-price-chart__heading span { color: #a7b2c3; font-size: 11px; }
+.dashboard-shell.theme-dark .trade-price-chart .apexcharts-text { fill: #c0cad8 !important; }
+.dashboard-shell.theme-light .trade-price-chart .apexcharts-text { fill: #514956 !important; }
