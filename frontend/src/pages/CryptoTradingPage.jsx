@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Chart from "react-apexcharts";
 import API, { API_BASE_URL } from "../services/api";
 
@@ -22,6 +22,8 @@ export default function CryptoTradingPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [livePrice, setLivePrice] = useState(null);
   const [streamStatus, setStreamStatus] = useState("connecting");
+  const previousLivePrice = useRef(null);
+  const [liveDirection, setLiveDirection] = useState("flat");
 
   useEffect(() => {
     let active = true;
@@ -43,6 +45,8 @@ export default function CryptoTradingPage() {
     };
     setData(null);
     setLivePrice(null);
+    previousLivePrice.current = null;
+    setLiveDirection("flat");
     load(false);
     const timer = setInterval(() => load(true), 120000);
     return () => { active = false; clearInterval(timer); };
@@ -67,6 +71,9 @@ export default function CryptoTradingPage() {
           if (!Number.isFinite(Number(tick.price))) return;
           const price = Number(tick.price);
           const stamp = Number(tick.event_time) || Date.now();
+          const previousPrice = previousLivePrice.current;
+          setLiveDirection(previousPrice == null ? "flat" : price > previousPrice ? "up" : price < previousPrice ? "down" : "flat");
+          previousLivePrice.current = price;
           setLivePrice(price);
           setUpdatedAt(new Date(stamp));
           setStreamStatus("live");
@@ -124,12 +131,15 @@ export default function CryptoTradingPage() {
   const chartSeries = useMemo(() => [{ name: asset.ticker, data: candles.map(c => ({ x: new Date(c.time).getTime(), y: [c.open, c.high, c.low, c.close] })) }], [candles, asset]);
   const volumeSeries = useMemo(() => [{ name: "Volume", data: candles.map(c => ({ x: new Date(c.time).getTime(), y: c.volume || 0 })) }], [candles]);
 
+  const currentChartPrice = livePrice ?? data?.current_price;
+  const priceLineColor = liveDirection === "up" ? "#10b981" : liveDirection === "down" ? "#f43f5e" : "#94a3b8";
   const chartOptions = {
-    chart: { type: "candlestick", background: "transparent", foreColor: "#94a3b8", toolbar: { show: true }, animations: { enabled: true, speed: 350, dynamicAnimation: { enabled: true, speed: 350 } } },
+    chart: { type: "candlestick", background: "transparent", foreColor: "#94a3b8", toolbar: { show: true }, animations: { enabled: true, speed: 120, dynamicAnimation: { enabled: true, speed: 120 } } },
     theme: { mode: "dark" },
     plotOptions: { candlestick: { colors: { upward: "#10b981", downward: "#f43f5e" }, wick: { useFillColor: true } } },
     xaxis: { type: "datetime", labels: { datetimeUTC: false } },
     yaxis: { tooltip: { enabled: true }, labels: { formatter: v => usd(v) } },
+    annotations: currentChartPrice != null ? { yaxis: [{ y: Number(currentChartPrice), borderColor: priceLineColor, strokeDashArray: 5, label: { text: usd(currentChartPrice), position: "right", borderColor: priceLineColor, style: { background: priceLineColor, color: "#fff", fontSize: "12px", fontWeight: 700 }, offsetX: -4 } }] } : {},
     grid: { borderColor: "#263449", strokeDashArray: 3 },
     tooltip: { theme: "dark", x: { format: "HH:mm:ss" } },
     noData: { text: "No crypto candles available" }
@@ -179,10 +189,10 @@ export default function CryptoTradingPage() {
 
         <section style={{marginBottom:15}}>
           <div style={{background:"linear-gradient(140deg,#14243a,#0d1728)",border:"1px solid #2b405b",borderRadius:15,padding:17}}>
-            <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><span style={{color:"#94a3b8",fontSize:11}}>SELECTED MARKET</span><h2 style={{margin:"5px 0"}}>{asset.name} <span style={{color:"#94a3b8",fontSize:14}}>{asset.ticker}/USD</span></h2></div><div style={{textAlign:"right"}}><strong style={{fontSize:27}}>{usd(livePrice ?? data?.current_price)}</strong><div style={{color:Number(data?.change_pct)>=0?"#34d399":"#fb7185",fontSize:13}}>{data?.change_pct==null?"—":`${data.change_pct>0?"+":""}${data.change_pct}% today`}</div></div></div>
+            <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><span style={{color:"#94a3b8",fontSize:11}}>SELECTED MARKET</span><h2 style={{margin:"5px 0"}}>{asset.name} <span style={{color:"#94a3b8",fontSize:14}}>{asset.ticker}/USD</span></h2></div><div style={{textAlign:"right"}}><strong style={{fontSize:27,color:priceLineColor}}>{usd(livePrice ?? data?.current_price)}</strong><div style={{color:Number(data?.change_pct)>=0?"#34d399":"#fb7185",fontSize:13}}>{data?.change_pct==null?"—":`${data.change_pct>0?"+":""}${data.change_pct}% today`}</div></div></div>
             <div style={{display:"flex",gap:7,flexWrap:"wrap",margin:"14px 0"}}>{[1,5,15,30].map(m=><button key={m} onClick={()=>setTimeframe(m)} style={{padding:"7px 13px",borderRadius:8,border:timeframe===m?"1px solid #38bdf8":"1px solid #34445b",background:timeframe===m?"#164e63":"#172235",color:"white",cursor:"pointer"}}>{m}m candles</button>)}<span style={{marginLeft:"auto",color:"#64748b",fontSize:11,alignSelf:"center"}}>{streamStatus === "live" ? "● LIVE · Binance trades" : streamStatus === "reconnecting" ? "Reconnecting to exchange…" : updatedAt ? `Snapshot · ${updatedAt.toLocaleTimeString()}` : "Connecting to exchange…"}</span></div>
             {loading&&!data?<div style={{padding:60,textAlign:"center"}}>Loading crypto market data…</div>:error&&!data?<div style={{padding:25,color:"#fbbf24"}}>{error}</div>:candles.length?<><Chart type="candlestick" height={340} options={chartOptions} series={chartSeries}/><div style={{color:"#94a3b8",fontSize:10,letterSpacing:".1em"}}>VOLUME</div><Chart type="bar" height={85} options={volumeOptions} series={volumeSeries}/></>:<div style={{padding:30}}>No candles received.</div>}
-            <p style={{color:"#8192a9",fontSize:11,marginBottom:0}}>Live quote and active candle update on each Binance trade tick. Historical candles are loaded from Yahoo Finance.</p>
+            <p style={{color:"#8192a9",fontSize:11,marginBottom:0}}><span style={{color:priceLineColor}}>● {liveDirection === "up" ? "PRICE MOVING UP" : liveDirection === "down" ? "PRICE MOVING DOWN" : "LIVE PRICE"}</span> · Current-price line and label update on every Binance trade tick; candle bodies turn green/red by open vs close.</p>
           </div>
         </section>
 
