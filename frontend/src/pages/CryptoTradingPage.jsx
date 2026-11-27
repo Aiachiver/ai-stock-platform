@@ -22,6 +22,7 @@ export default function CryptoTradingPage() {
   const [livePrice, setLivePrice] = useState(null);
   const [streamStatus, setStreamStatus] = useState("connecting");
   const previousLivePrice = useRef(null);
+  const pendingTick = useRef(null);
   const [liveDirection, setLiveDirection] = useState("flat");
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [customExpiryTime, setCustomExpiryTime] = useState("");
@@ -69,26 +70,8 @@ export default function CryptoTradingPage() {
           if (tick.status === "connected") { setStreamStatus("live"); return; }
           if (tick.status === "reconnecting") { setStreamStatus("reconnecting"); return; }
           if (!Number.isFinite(Number(tick.price))) return;
-          const price = Number(tick.price);
-          const stamp = Number(tick.event_time) || Date.now();
-          const previousPrice = previousLivePrice.current;
-          setLiveDirection(previousPrice == null ? "flat" : price > previousPrice ? "up" : price < previousPrice ? "down" : "flat");
-          previousLivePrice.current = price;
-          setLivePrice(price);
-          setUpdatedAt(new Date(stamp));
+          pendingTick.current = tick;
           setStreamStatus("live");
-          setData(previous => {
-            if (!previous) return previous;
-            const history = [...(previous.candles || [])];
-            const minute = Math.floor(stamp / 60000) * 60000;
-            const last = history[history.length - 1];
-            if (last && Math.floor(new Date(last.time).getTime() / 60000) === Math.floor(stamp / 60000)) {
-              history[history.length - 1] = { ...last, high: Math.max(Number(last.high), price), low: Math.min(Number(last.low), price), close: price, volume: Number(last.volume || 0) + Number(tick.quantity || 0) };
-            } else {
-              history.push({ time: new Date(minute).toISOString(), open: last ? Number(last.close) : price, high: price, low: price, close: price, volume: Number(tick.quantity || 0) });
-            }
-            return { ...previous, current_price: price, candles: history.slice(-240), data_source: "Binance Spot live trades", is_live: true };
-          });
         } catch { /* Ignore malformed messages and keep the stream alive. */ }
       };
       socket.onerror = () => setStreamStatus("reconnecting");
@@ -101,7 +84,33 @@ export default function CryptoTradingPage() {
       };
     };
     connect();
+    const publishTimer = setInterval(() => {
+      const tick = pendingTick.current;
+      if (!tick) return;
+      pendingTick.current = null;
+      const price = Number(tick.price);
+      const stamp = Number(tick.event_time) || Date.now();
+      const previousPrice = previousLivePrice.current;
+      setLiveDirection(previousPrice == null ? "flat" : price > previousPrice ? "up" : price < previousPrice ? "down" : "flat");
+      previousLivePrice.current = price;
+      setLivePrice(price);
+      setUpdatedAt(new Date(stamp));
+      setData(previous => {
+        if (!previous) return previous;
+        const history = [...(previous.candles || [])];
+        const minute = Math.floor(stamp / 60000) * 60000;
+        const last = history[history.length - 1];
+        if (last && Math.floor(new Date(last.time).getTime() / 60000) === Math.floor(stamp / 60000)) {
+          history[history.length - 1] = { ...last, high: Math.max(Number(last.high), price), low: Math.min(Number(last.low), price), close: price, volume: Number(last.volume || 0) + Number(tick.quantity || 0) };
+        } else {
+          history.push({ time: new Date(minute).toISOString(), open: last ? Number(last.close) : price, high: price, low: price, close: price, volume: Number(tick.quantity || 0) });
+        }
+        return { ...previous, current_price: price, candles: history.slice(-240), data_source: "Binance Spot live trades", is_live: true };
+      });
+    }, 1000);
     return () => {
+      clearInterval(publishTimer);
+      pendingTick.current = null;
       stopped = true;
       clearTimeout(retryTimer);
       if (socket && socket.readyState < WebSocket.CLOSING) socket.close();
@@ -136,7 +145,7 @@ export default function CryptoTradingPage() {
   const currentChartPrice = livePrice ?? data?.current_price;
   const priceLineColor = liveDirection === "up" ? "#68b58a" : liveDirection === "down" ? "#d77c76" : "#b8ad9b";
   const chartOptions = {
-    chart: { type: "candlestick", background: "transparent", foreColor: "#b8ad9b", toolbar: { show: true }, animations: { enabled: true, speed: 120, dynamicAnimation: { enabled: true, speed: 120 } } },
+    chart: { type: "candlestick", background: "transparent", foreColor: "#b8ad9b", toolbar: { show: true }, animations: { enabled: true, speed: 250, dynamicAnimation: { enabled: true, speed: 250 } } },
     theme: { mode: "dark" },
     plotOptions: { candlestick: { colors: { upward: "#68b58a", downward: "#d77c76" }, wick: { useFillColor: true } } },
     xaxis: { type: "datetime", labels: { datetimeUTC: false } },
@@ -197,7 +206,7 @@ export default function CryptoTradingPage() {
             <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><span style={{color:"#b8ad9b",fontSize:11}}>SELECTED MARKET</span><h2 style={{margin:"5px 0"}}>{asset.name} <span style={{color:"#b8ad9b",fontSize:14}}>{asset.ticker}/USD</span></h2></div><div style={{textAlign:"right"}}><strong style={{fontSize:27,color:priceLineColor}}>{usd(livePrice ?? data?.current_price)}</strong><div style={{color:Number(data?.change_pct)>=0?"#68b58a":"#d77c76",fontSize:13}}>{data?.change_pct==null?"—":`${data.change_pct>0?"+":""}${data.change_pct}% today`}</div></div></div>
             <div style={{display:"flex",gap:7,flexWrap:"wrap",margin:"14px 0"}}>{[1,5,15,30].map(m=><button key={m} onClick={()=>setTimeframe(m)} style={{padding:"7px 13px",borderRadius:8,border:timeframe===m?"1px solid #c6a96b":"1px solid #34445b",background:timeframe===m?"#3c5148":"#202b29",color:"white",cursor:"pointer"}}>{m}m candles</button>)}<span style={{marginLeft:"auto",color:"#77786e",fontSize:11,alignSelf:"center"}}>{streamStatus === "live" ? "● LIVE · Binance trades" : streamStatus === "reconnecting" ? "Reconnecting to exchange…" : updatedAt ? `Snapshot · ${updatedAt.toLocaleTimeString()}` : "Connecting to exchange…"}</span></div>
             {loading&&!data?<div style={{padding:60,textAlign:"center"}}>Loading crypto market data…</div>:error&&!data?<div style={{padding:25,color:"#d4b56f"}}>{error}</div>:candles.length?<><Chart type="candlestick" height={340} options={chartOptions} series={chartSeries}/><div style={{color:"#b8ad9b",fontSize:10,letterSpacing:".1em"}}>VOLUME</div><Chart type="bar" height={85} options={volumeOptions} series={volumeSeries}/></>:<div style={{padding:30}}>No candles received.</div>}
-            <p style={{color:"#aaa18f",fontSize:11,marginBottom:0}}><span style={{color:priceLineColor}}>● {liveDirection === "up" ? "PRICE MOVING UP" : liveDirection === "down" ? "PRICE MOVING DOWN" : "LIVE PRICE"}</span> · Current-price line and label update on every Binance trade tick; candle bodies turn green/red by open vs close.</p>
+            <p style={{color:"#aaa18f",fontSize:11,marginBottom:0}}><span style={{color:priceLineColor}}>● {liveDirection === "up" ? "PRICE MOVING UP" : liveDirection === "down" ? "PRICE MOVING DOWN" : "LIVE PRICE"}</span> · Latest Binance trade price is displayed once per second; candle bodies turn green/red by open vs close.</p>
           </div>
         </section>
 
