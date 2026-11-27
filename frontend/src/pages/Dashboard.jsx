@@ -287,7 +287,7 @@ function Dashboard() {
 
   // Common card style
   const cardStyle = {
-    background: "#1e293b",
+    background: "#182322",
     padding: "20px",
     borderRadius: "12px",
     textAlign: "center",
@@ -307,7 +307,7 @@ function Dashboard() {
       <div
         style={{
           minHeight: "100vh",
-          background: "#0f172a",
+          background: "#0b1118",
           color: "white",
           display: "flex",
           justifyContent: "center",
@@ -323,10 +323,10 @@ function Dashboard() {
 
   // Main dashboard
   return (
-    <div
+    <div className="app-shell dashboard-shell"
       style={{
         minHeight: "100vh",
-        background: "#0f172a",
+        background: "#0b1118",
         color: "white",
         padding: "25px",
         boxSizing: "border-box"
@@ -353,9 +353,9 @@ function Dashboard() {
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((open) => !open)}
             style={{
-              background: "#1e293b",
+              background: "#182322",
               color: "white",
-              border: "1px solid #334155",
+              border: "1px solid #514c40",
               borderRadius: 10,
               padding: "10px 14px",
               cursor: "pointer",
@@ -375,8 +375,8 @@ function Dashboard() {
                 width: 230,
                 padding: 8,
                 borderRadius: 12,
-                background: "#172554",
-                border: "1px solid #334155",
+                background: "#202b2b",
+                border: "1px solid #514c40",
                 boxShadow: "0 12px 30px rgba(0,0,0,.35)"
               }}
             >
@@ -384,8 +384,8 @@ function Dashboard() {
                 style={{
                   padding: "11px 12px",
                   margin: "2px 0 8px",
-                  borderBottom: "1px solid #334155",
-                  color: "#cbd5e1",
+                  borderBottom: "1px solid #514c40",
+                  color: "#d8cbb3",
                   fontWeight: 700
                 }}
               >
@@ -406,14 +406,14 @@ function Dashboard() {
                     borderRadius: 8,
                     cursor: "pointer",
                     color: "white",
-                    background: activeView === view ? "#2563eb" : "transparent",
+                    background: activeView === view ? "#96794a" : "transparent",
                     fontWeight: 600
                   }}
                 >
                   {label}
                 </button>
               ))}
-              <div style={{ borderTop: "1px solid #334155", margin: "8px 0" }} />
+              <div style={{ borderTop: "1px solid #514c40", margin: "8px 0" }} />
               <button
                 type="button"
                 onClick={() => { setMenuOpen(false); logout(); }}
@@ -442,8 +442,8 @@ function Dashboard() {
       {activeView === "models" && <ModelDetailsPage symbol={symbol} prediction={prediction} performance={performance} advancedIntelligence={advancedIntelligence} insights={insights} backtest={backtest} risk={risk} premiumLoading={premiumLoading} />}
       {activeView === "dashboard" && (<>
       <div style={{
-        background: "#172554", border: "1px solid #1d4ed8", borderRadius: 12,
-        padding: "12px 16px", marginBottom: 20, color: "#dbeafe",
+        background: "#202b2b", border: "1px solid #66583f", borderRadius: 12,
+        padding: "12px 16px", marginBottom: 20, color: "#eee5d5",
         fontSize: 13, lineHeight: 1.6
       }}>
         <strong>Research workspace · Paper trading only.</strong>{" "}
@@ -487,7 +487,7 @@ function Dashboard() {
 
         <div
           style={{
-            background: "#1e293b",
+            background: "#182322",
             padding: "12px 20px",
             borderRadius: "10px"
           }}
@@ -500,7 +500,7 @@ function Dashboard() {
           onClick={refreshDashboard}
           disabled={loading}
           style={{
-            background: loading ? "#475569" : "#2563eb",
+            background: loading ? "#625840" : "#96794a",
             color: "white",
             border: "none",
             padding: "12px 18px",
@@ -547,18 +547,18 @@ function Dashboard() {
             : "The forecast is being prepared. No trade signal is issued until model output is available.";
         return (
           <section style={{
-            background: "linear-gradient(135deg, #172554 0%, #14213d 60%, #0f172a 100%)",
+            background: "linear-gradient(135deg, #202b2b 0%, #14213d 60%, #0b1118 100%)",
             border: "1px solid #36558a", borderRadius: 16, padding: 22, margin: "0 0 24px",
             boxShadow: "0 12px 30px rgba(0,0,0,.22)"
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14 }}>
               <div>
-                <span style={{ color: "#93c5fd", fontSize: 11, fontWeight: 800, letterSpacing: ".12em" }}>TRADESIGHT AI · LIVE RESEARCH SIGNAL</span>
+                <span style={{ color: "#d8c29a", fontSize: 11, fontWeight: 800, letterSpacing: ".12em" }}>TRADESIGHT AI · LIVE RESEARCH SIGNAL</span>
                 <h2 style={{ margin: "7px 0 4px", fontSize: 23 }}>What should I do with {symbol}?</h2>
-                <p style={{ color: "#cbd5e1", margin: 0, fontSize: 13 }}>Next trading session · Paper-trading research only</p>
+                <p style={{ color: "#d8cbb3", margin: 0, fontSize: 13 }}>Next trading session · Paper-trading research only</p>
               </div>
               <div style={{ minWidth: 170, textAlign: "center", background: "#0b1224", border: `1px solid ${decisionColor}`, borderRadius: 13, padding: "13px 18px" }}>
-                <div style={{ color: "#94a3b8", fontSize: 10, letterSpacing: ".1em", fontWeight: 800 }}>CURRENT SIGNAL</div>
+                <div style={{ color: "#aaa18f", fontSize: 10, letterSpacing: ".1em", fontWeight: 800 }}>CURRENT SIGNAL</div>
                 <strong style={{ display: "block", color: decisionColor, fontSize: 19, marginTop: 5 }}>{displayDecision}</strong>
               </div>
             </div>
@@ -573,7 +573,7 @@ function Dashboard() {
                 ["Confidence / threshold", confidence == null ? null : `${confidence}% / ${threshold}%`, false]
               ].map(([label, value, isPrice]) => (
                 <div key={label} style={{ background: "#0b1224", border: "1px solid #263653", borderRadius: 11, padding: 13 }}>
-                  <div style={{ color: "#94a3b8", fontSize: 11 }}>{label}</div>
+                  <div style={{ color: "#aaa18f", fontSize: 11 }}>{label}</div>
                   <strong style={{ display: "block", marginTop: 7, fontSize: 17 }}>
                     {value == null ? "—" : isPrice ? `$${Number(value).toFixed(2)}` : value}
                   </strong>
@@ -582,19 +582,19 @@ function Dashboard() {
             </div>
 
             <div style={{ marginTop: 16, padding: 15, borderRadius: 11, background: "#0b1224", borderLeft: `3px solid ${decisionColor}` }}>
-              <strong style={{ color: "#e2e8f0", fontSize: 13 }}>Why this signal?</strong>
-              <p style={{ color: "#cbd5e1", lineHeight: 1.6, margin: "6px 0 0", fontSize: 13 }}>{explain}</p>
+              <strong style={{ color: "#eee5d5", fontSize: 13 }}>Why this signal?</strong>
+              <p style={{ color: "#d8cbb3", lineHeight: 1.6, margin: "6px 0 0", fontSize: 13 }}>{explain}</p>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 15 }}>
               <div style={{ color: "#a5b4fc", fontSize: 12 }} aria-live="polite">
                 {quickSignalLoading ? "Preparing stock forecast…" : hasFastForecast ? "Quick forecast ready · Open Models for full historical validation" : "Quick forecast unavailable"}
               </div>
-              <button type="button" onClick={() => setActiveView("models")} style={{ background: "#2563eb", color: "white", border: 0, borderRadius: 9, padding: "10px 15px", cursor: "pointer", fontWeight: 700 }}>
+              <button type="button" onClick={() => setActiveView("models")} style={{ background: "#96794a", color: "white", border: 0, borderRadius: 9, padding: "10px 15px", cursor: "pointer", fontWeight: 700 }}>
                 Explore full analysis →
               </button>
             </div>
-            <p style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.5, margin: "13px 0 0" }}>
+            <p style={{ color: "#aaa18f", fontSize: 11, lineHeight: 1.5, margin: "13px 0 0" }}>
               Signals are experimental estimates, not guaranteed outcomes or financial advice. SELL BIAS means avoid a new long position; the platform does not execute short sales automatically.
             </p>
           </section>
@@ -683,9 +683,9 @@ function Dashboard() {
       {/* STOCK CHART */}
       <div
         style={{
-          background: "#1e293b",
+          background: "#182322",
           padding: "20px",
-          border: "1px solid #334155",
+          border: "1px solid #514c40",
           borderRadius: "12px",
           width: "100%",
           margin: "auto",
@@ -718,7 +718,7 @@ function Dashboard() {
       {/* CURRENT POSITIONS */}
       <div
         style={{
-          background: "#1e293b",
+          background: "#182322",
           padding: "20px",
           borderRadius: "12px",
           marginTop: "25px"
@@ -727,7 +727,7 @@ function Dashboard() {
         <h2>📊 Current Positions</h2>
 
         {positions.length === 0 ? (
-          <p style={{ textAlign: "center", color: "#94a3b8" }}>
+          <p style={{ textAlign: "center", color: "#aaa18f" }}>
             No open positions
           </p>
         ) : (
@@ -754,7 +754,7 @@ function Dashboard() {
                 <div
                   key={index}
                   style={{
-                    background: "#0f172a",
+                    background: "#0b1118",
                     padding: "18px",
                     borderRadius: "10px"
                   }}
