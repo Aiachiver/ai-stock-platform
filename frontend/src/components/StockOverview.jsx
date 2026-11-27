@@ -12,7 +12,7 @@ const compactMoney = (value, currency = "USD") => {
 
 function StockOverview({ quote, livePrice }) {
   if (!quote) {
-    return <div style={{ background: "#1e293b", padding: 22, borderRadius: 14, color: "#94a3b8", marginBottom: 22 }}>Market overview is unavailable right now.</div>;
+    return <div style={{ background: "#182322", padding: 22, borderRadius: 14, color: "#aaa18f", marginBottom: 22 }}>Market overview is unavailable right now.</div>;
   }
 
   const currency = quote.currency || "USD";
@@ -28,10 +28,10 @@ function StockOverview({ quote, livePrice }) {
   ];
 
   return (
-    <section style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 16, padding: 22, marginBottom: 22 }}>
+    <section style={{ background: "#182322", border: "1px solid #514c40", borderRadius: 16, padding: 22, marginBottom: 22 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 18 }}>
         <div>
-          <div style={{ color: "#cbd5e1", fontSize: 15 }}>{quote.company_name || quote.symbol} · {quote.exchange || "Market data"}</div>
+          <div style={{ color: "#d8cbb3", fontSize: 15 }}>{quote.company_name || quote.symbol} · {quote.exchange || "Market data"}</div>
           <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 12, marginTop: 8 }}>
             <strong style={{ fontSize: 36, letterSpacing: "-1px" }}>{money(price, currency)}</strong>
             {quote.change !== null && quote.change !== undefined && (
@@ -40,18 +40,18 @@ function StockOverview({ quote, livePrice }) {
               </span>
             )}
           </div>
-          <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 8 }}>{quote.symbol} · {quote.data_note || "Market data may be delayed"}</div>
+          <div style={{ color: "#aaa18f", fontSize: 12, marginTop: 8 }}>{quote.symbol} · {quote.data_note || "Market data may be delayed"}</div>
         </div>
-        <div style={{ color: "#94a3b8", fontSize: 12, textAlign: "right" }}>
+        <div style={{ color: "#aaa18f", fontSize: 12, textAlign: "right" }}>
           <div>Data source</div>
-          <strong style={{ color: "#e2e8f0" }}>Yahoo Finance</strong>
+          <strong style={{ color: "#eee5d5" }}>Yahoo Finance</strong>
           {quote.as_of && <div style={{ marginTop: 5 }}>Updated: {new Date(quote.as_of).toLocaleString()}</div>}
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 12, marginTop: 22 }}>
         {metrics.map(([label, value]) => (
-          <div key={label} style={{ background: "#0f172a", padding: 14, borderRadius: 10 }}>
-            <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 7 }}>{label}</div>
+          <div key={label} style={{ background: "#0b1118", padding: 14, borderRadius: 10 }}>
+            <div style={{ color: "#aaa18f", fontSize: 12, marginBottom: 7 }}>{label}</div>
             <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>{value}</div>
           </div>
         ))}
