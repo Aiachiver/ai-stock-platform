@@ -34,15 +34,15 @@ function PredictionPerformance({ data, loading = false }) {
   ];
 
   const options = {
-    chart: { type: "line", height: 330, background: "#1e293b", foreColor: "#cbd5e1", toolbar: { show: true }, zoom: { enabled: true } },
+    chart: { type: "line", height: 330, background: "#182322", foreColor: "#d8cbb3", toolbar: { show: true }, zoom: { enabled: true } },
     theme: { mode: "dark" },
     colors: ["#38bdf8", "#f59e0b"],
     stroke: { curve: "smooth", width: [2, 2] },
     title: { text: "Actual close vs model estimate", align: "left", style: { color: "#f8fafc", fontSize: "15px" } },
-    xaxis: { categories: data.chart.map(row => row.date), labels: { rotate: -35, style: { colors: "#94a3b8" } } },
-    yaxis: { labels: { formatter: value => "$" + value.toFixed(2), style: { colors: "#94a3b8" } } },
-    grid: { borderColor: "#334155" },
-    legend: { labels: { colors: "#cbd5e1" } },
+    xaxis: { categories: data.chart.map(row => row.date), labels: { rotate: -35, style: { colors: "#aaa18f" } } },
+    yaxis: { labels: { formatter: value => "$" + value.toFixed(2), style: { colors: "#aaa18f" } } },
+    grid: { borderColor: "#514c40" },
+    legend: { labels: { colors: "#d8cbb3" } },
     tooltip: { theme: "dark" }
   };
   const series = [
@@ -53,13 +53,13 @@ function PredictionPerformance({ data, loading = false }) {
   return (
     <section className="research-panel">
       <div className="research-panel__top"><div><span className="eyebrow">MODEL TRANSPARENCY</span><h2>Model Performance & Transparency</h2></div><span className="research-status">Holdout evaluated</span></div>
-      <p style={{ color: "#94a3b8", marginTop: 0, fontSize: 13 }}>
+      <p style={{ color: "#aaa18f", marginTop: 0, fontSize: 13 }}>
         {data.model} · {data.forecast_horizon} · Chronological holdout not used for model selection
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 12, margin: "18px 0" }}>
         {metrics.map(([label, value]) => (
-          <div key={label} style={{ background: "#0f172a", borderRadius: 10, padding: 14 }}>
-            <div style={{ color: "#94a3b8", fontSize: 12 }}>{label}</div>
+          <div key={label} style={{ background: "#0b1118", borderRadius: 10, padding: 14 }}>
+            <div style={{ color: "#aaa18f", fontSize: 12 }}>{label}</div>
             <strong style={{ display: "block", marginTop: 7, fontSize: 19 }}>{value}</strong>
           </div>
         ))}
@@ -69,21 +69,21 @@ function PredictionPerformance({ data, loading = false }) {
         <div style={{ overflowX: "auto", marginTop: 18 }}>
           <h3>Validation model comparison</h3>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
-            <thead><tr>{["Model", "Direction", "Balanced", "Return MAE"].map(label => <th key={label} style={{ padding: 9, borderBottom: "1px solid #475569", color: "#94a3b8" }}>{label}</th>)}</tr></thead>
+            <thead><tr>{["Model", "Direction", "Balanced", "Return MAE"].map(label => <th key={label} style={{ padding: 9, borderBottom: "1px solid #625840", color: "#aaa18f" }}>{label}</th>)}</tr></thead>
             <tbody>
               {Object.entries(data.model_comparison).map(([name, row]) => (
                 <tr key={name}>
-                  <td style={{ padding: 9, borderBottom: "1px solid #334155" }}>{name}</td>
-                  <td style={{ padding: 9, borderBottom: "1px solid #334155" }}>{Number(row.directional_accuracy_pct).toFixed(2)}%</td>
-                  <td style={{ padding: 9, borderBottom: "1px solid #334155" }}>{Number(row.balanced_directional_accuracy_pct).toFixed(2)}%</td>
-                  <td style={{ padding: 9, borderBottom: "1px solid #334155" }}>{Number(row.mae_return_pct).toFixed(3)}%</td>
+                  <td style={{ padding: 9, borderBottom: "1px solid #514c40" }}>{name}</td>
+                  <td style={{ padding: 9, borderBottom: "1px solid #514c40" }}>{Number(row.directional_accuracy_pct).toFixed(2)}%</td>
+                  <td style={{ padding: 9, borderBottom: "1px solid #514c40" }}>{Number(row.balanced_directional_accuracy_pct).toFixed(2)}%</td>
+                  <td style={{ padding: 9, borderBottom: "1px solid #514c40" }}>{Number(row.mae_return_pct).toFixed(3)}%</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-      <p style={{ color: "#94a3b8", fontSize: 12, lineHeight: 1.6, marginBottom: 0 }}>{data.note}</p>
+      <p style={{ color: "#aaa18f", fontSize: 12, lineHeight: 1.6, marginBottom: 0 }}>{data.note}</p>
     </section>
   );
 }
