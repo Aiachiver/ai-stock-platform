@@ -39,7 +39,7 @@ function AdvancedIntelligence({ data, loading = false }) {
   const backtest = data.paper_backtest || {};
   const decisionColor = prediction.decision === "BUY / PAPER LONG"
     ? "#22c55e"
-    : prediction.decision === "BEARISH / AVOID NEW LONG" ? "#f59e0b" : "#94a3b8";
+    : prediction.decision === "BEARISH / AVOID NEW LONG" ? "#f59e0b" : "#aaa18f";
 
   return (
     <section className="research-panel">
