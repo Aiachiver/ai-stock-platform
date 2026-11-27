@@ -1,338 +1,52 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap");
 
+/* TradeSight Atelier — porcelain, plum and brushed copper */
 :root {
-  font-family: "DM Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #f3eee4;
-  background: #0b1118;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-optical-sizing: auto;
-  --surface: #182322;
-  --surface-raised: #202b2b;
-  --border: rgba(198, 169, 107, .22);
-  --muted: #aaa18f;
-  --accent: #c6a96b;
+  color-scheme: light;
+  font-family: "DM Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  --page: #f3f0eb;
+  --paper: #fffdfa;
+  --paper-soft: #f8f4ef;
+  --ink: #302b35;
+  --muted: #817985;
+  --plum: #76536f;
+  --plum-deep: #5c4058;
+  --plum-soft: #f1e9f0;
+  --copper: #b47b55;
+  --copper-soft: #f5ebe3;
+  --line: #e9e0d9;
+  --shadow: 0 14px 38px rgba(55, 39, 53, .075);
 }
-
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html, body, #root { min-height: 100%; }
+html { scroll-behavior: smooth; background: var(--page); }
 body {
-  margin: 0;
-  min-width: 320px;
-  font-family: inherit;
+  margin: 0; min-width: 320px; color: var(--ink);
   background:
-    radial-gradient(ellipse at 12% 0%, rgba(198, 169, 107, .10), transparent 34rem),
-    #0b1118;
-  color: #edf2fa;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    radial-gradient(ellipse at 8% 0%, rgba(180,123,85,.10), transparent 34rem),
+    radial-gradient(ellipse at 92% 4%, rgba(118,83,111,.08), transparent 32rem),
+    var(--page);
+  font-family: inherit; line-height: 1.55;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
 }
-button, input, select, textarea { font: inherit; }
-button { transition: transform .18s ease, filter .18s ease, opacity .18s ease; }
-button:not(:disabled):hover { filter: brightness(1.08); transform: translateY(-1px); }
-button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
-  outline: 2px solid #c6a96b;
-  outline-offset: 3px;
-}
-h1, h2, h3, h4 {
-  font-family: "Manrope", "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: -.025em;
-}
-::selection { background: rgba(198, 169, 107, .28); color: white; }
-
-.trade-panel {
-  position: relative;
-  margin-top: 22px;
-  padding: 24px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgba(22, 35, 56, .98), rgba(15, 27, 44, .98));
-  box-shadow: 0 16px 42px rgba(0, 0, 0, .16);
-}
-.trade-panel__heading, .trade-panel__controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-.trade-panel__heading h2 { margin: 5px 0 6px; font-size: clamp(20px, 2vw, 25px); }
-.trade-panel__heading h2 span { color: #93a4bb; font-weight: 600; }
-.trade-panel__heading p { margin: 0; color: var(--muted); font-size: 13px; }
-.eyebrow { color: #7db7ff; font-size: 10px; font-weight: 800; letter-spacing: .13em; }
-.simulation-pill {
-  padding: 7px 11px;
-  border: 1px solid rgba(245, 158, 11, .3);
-  border-radius: 999px;
-  background: rgba(245, 158, 11, .09);
-  color: #fbbf24;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.trade-panel__controls { margin-top: 22px; align-items: end; }
-.trade-quantity { display: grid; gap: 8px; color: #b7c5d8; font-size: 12px; font-weight: 600; }
-.trade-quantity input {
-  width: 150px; padding: 12px 14px; border: 1px solid var(--border);
-  border-radius: 10px; background: #0b1525; color: white; font-size: 15px;
-}
-.trade-estimate { display: grid; gap: 4px; min-width: 180px; }
-.trade-estimate span, .trade-estimate small { color: var(--muted); font-size: 11px; }
-.trade-estimate strong { font-family: "Manrope", sans-serif; font-size: 21px; }
-.trade-actions { display: flex; flex: 1; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
-.trade-notice {
-  margin-top: 16px; padding: 12px 14px; border-radius: 10px;
-  font-size: 13px; line-height: 1.5;
-}
-.trade-notice--success { border: 1px solid rgba(34, 197, 94, .25); background: rgba(34, 197, 94, .08); color: #86efac; }
-.trade-notice--error { border: 1px solid rgba(248, 113, 113, .25); background: rgba(248, 113, 113, .08); color: #fca5a5; }
-.trade-confirm {
-  position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center;
-  padding: 20px; background: rgba(2, 6, 23, .72); backdrop-filter: blur(8px);
-}
-.trade-confirm__card {
-  width: min(100%, 430px); padding: 25px; border: 1px solid var(--border);
-  border-radius: 18px; background: #202b2b; box-shadow: 0 24px 80px rgba(0,0,0,.4);
-}
-.trade-confirm__card h3 { margin: 8px 0; font-size: 22px; }
-.trade-confirm__card p { color: var(--muted); font-size: 13px; line-height: 1.6; }
-.trade-confirm__actions { display: flex; gap: 10px; margin-top: 22px; }
-.secondary-button {
-  flex: 1; border: 1px solid var(--border); border-radius: 10px;
-  background: #303a32; color: #eee5d5; padding: 12px 16px; font-weight: 700;
-}
-.trade-confirm__actions button:last-child { flex: 1; }
-@media (max-width: 640px) {
-  .trade-panel { padding: 18px; }
-  .trade-actions { width: 100%; }
-  .trade-actions button { min-width: 0 !important; }
-  .trade-quantity, .trade-quantity input { width: 100%; }
-  .trade-estimate { width: 100%; }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+h1,h2,h3,h4 { color: var(--ink); font-family: "Manrope","DM Sans",sans-serif; letter-spacing: -.035em; }
+p { color: #655d68; }
+a { color: var(--plum); }
+::selection { background: #eadde8; color: #382a38; }
+button,input,select,textarea { font: inherit; }
+button { border-radius: 11px; transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
+button:not(:disabled):hover { transform: translateY(-1px); }
+button:disabled { cursor: not-allowed; opacity: .62; }
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible {
+  outline: 2px solid var(--copper); outline-offset: 3px;
 }
 
-/* Research panels: legible status, metrics and loading states */
-body { font-size: 16px; line-height: 1.55; }
-p, label, td, th, input, select, button { font-size: 14px; }
-h1 { font-size: clamp(26px, 2.5vw, 34px); }
-h2 { font-size: clamp(20px, 2vw, 25px); }
-h3 { font-size: clamp(17px, 1.5vw, 20px); }
-.research-panel {
-  margin-top: 20px; padding: clamp(18px, 2vw, 26px);
-  border: 1px solid var(--border); border-radius: 16px;
-  background: linear-gradient(145deg, #202b2b, #151e1e);
-  color: #edf2fa;
-}
-.research-panel__top {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 14px; margin-bottom: 14px;
-}
-.research-panel__top h2 { margin: 5px 0 0; }
-.research-status {
-  display: inline-flex; align-items: center; gap: 8px; padding: 7px 11px;
-  border: 1px solid rgba(56,189,248,.25); border-radius: 999px;
-  background: rgba(56,189,248,.08); color: #7dd3fc;
-  font-size: 12px; font-weight: 700;
-}
-.research-status--warning {
-  color: #fbbf24; border-color: rgba(251,191,36,.25);
-  background: rgba(251,191,36,.08);
-}
-.research-muted { color: #b2c0d2; font-size: 14px; line-height: 1.7; }
-.research-disclaimer { margin: 18px 0 0; color: #8fa2bb; font-size: 12px; line-height: 1.7; }
-.loading-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: #38bdf8;
-  box-shadow: 0 0 0 4px rgba(56,189,248,.12);
-  animation: research-pulse 1.4s ease-in-out infinite;
-}
-.research-skeleton {
-  height: 10px; width: 100%; margin-top: 18px; border-radius: 99px;
-  background: linear-gradient(90deg, #263a54 25%, #38506e 50%, #263a54 75%);
-  background-size: 200% 100%; animation: research-shimmer 1.6s linear infinite;
-}
-.forecast-signal {
-  display: inline-flex; padding: 8px 18px; border: 1px solid;
-  border-radius: 999px; font-size: 14px; letter-spacing: .06em;
-}
-.forecast-values, .forecast-metrics {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px;
-}
-.forecast-values > div, .forecast-metrics > div {
-  display: grid; gap: 7px; padding: 16px; border-radius: 12px;
-  background: #0b1628; border: 1px solid rgba(148,163,184,.1);
-}
-.forecast-values span, .forecast-metrics span { color: #9aacc2; font-size: 12px; }
-.forecast-values strong { font-family: "Manrope", sans-serif; font-size: 24px; }
-.forecast-metrics { margin-top: 12px; }
-.forecast-metrics strong { font-size: 15px; }
-@keyframes research-pulse { 50% { opacity: .45; transform: scale(.86); } }
-@keyframes research-shimmer { to { background-position: -200% 0; } }
-@media (max-width: 640px) {
-  body { font-size: 15px; }
-  .research-panel { padding: 16px; }
-  .forecast-values strong { font-size: 21px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .loading-dot, .research-skeleton { animation: none; }
-}
-
-/* TradeSight luxury palette: deep evergreen, warm ivory and restrained champagne. */
-.crypto-terminal button,
-.crypto-terminal input,
-.crypto-terminal select { font-family: inherit; }
-.crypto-terminal button { letter-spacing: .005em; }
-.crypto-terminal button:focus-visible,
-.crypto-terminal input:focus-visible { outline-color: #d6bd83; }
-.crypto-terminal article { transition: transform .2s ease, box-shadow .2s ease; }
-.crypto-terminal article:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(0,0,0,.14); }
-.crypto-terminal input[type="time"],
-.crypto-terminal input[type="number"] { color-scheme: dark; }
-@media (max-width: 640px) {
-  .crypto-terminal { padding: 12px !important; }
-  .crypto-terminal article { min-width: 0; }
-}
-
-/* Consistent luxury palette and accessible controls across the complete app. */
-:root{--ts-bg:#0b1118;--ts-panel:#182322;--ts-panel-raised:#202b2b;--ts-border:rgba(198,169,107,.22);--ts-gold:#c6a96b;--ts-ivory:#f3eee4;--ts-muted:#aaa18f}
-html,body,#root{min-height:100%;background-color:var(--ts-bg);color:var(--ts-ivory)}
-.app-shell{color:var(--ts-ivory)}
-.app-shell th{color:var(--ts-muted)!important}
-.app-shell input,.app-shell select,.app-shell textarea{background-color:#101918!important;color:var(--ts-ivory)!important;border:1px solid var(--ts-border)!important;border-radius:10px}
-.app-shell input::placeholder,.app-shell textarea::placeholder{color:#918a7c}
-.app-shell button:focus-visible,.app-shell input:focus-visible,.app-shell select:focus-visible{outline:2px solid #d6bd83;outline-offset:3px}
-.login-shell{background:radial-gradient(ellipse at 50% 0%,rgba(198,169,107,.16),transparent 48%),#0b1118!important}
-.login-shell section{background:linear-gradient(145deg,#202b2b,#151e1e)!important;border-color:var(--ts-border)!important;box-shadow:0 28px 80px rgba(0,0,0,.38)!important}
-.dashboard-shell{background:radial-gradient(ellipse at 10% 0%,rgba(198,169,107,.09),transparent 34rem),#0b1118!important}
-@media(max-width:700px){.dashboard-shell{padding:14px!important}.login-shell{padding:16px!important}}
-
-
-/* TradeSight UI refresh — warm, bright, editorial trading workspace */
-:root {
-  color-scheme: light;
-  --ts-bg: #f5f4f1;
-  --ts-panel: #ffffff;
-  --ts-panel-raised: #f8f7f4;
-  --ts-border: #e7e4dd;
-  --ts-ink: #24242b;
-  --ts-muted: #777783;
-  --ts-accent: #6656c7;
-  --ts-accent-soft: #efedfb;
-}
-html, body, #root {
-  min-height: 100%;
-  background: var(--ts-bg) !important;
-  color: var(--ts-ink);
-}
-body {
-  background: #f5f4f1 !important;
-  color: #24242b !important;
-  font-family: "DM Sans", Inter, ui-sans-serif, system-ui, sans-serif;
-}
-::selection { background: #e4defb; color: #292044; }
-h1, h2, h3, h4 { color: #24242b; }
-a { color: #6656c7; }
-button, input, select, textarea { font-family: inherit; }
-button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
-  outline: 2px solid #7667d4 !important;
-  outline-offset: 3px;
-}
-/* Main app surfaces */
-.dashboard-shell, .app-shell, .login-shell, .crypto-terminal {
-  background: #f5f4f1 !important;
-  color: #24242b !important;
-}
-.login-shell section {
-  background: #ffffff !important;
-  border: 1px solid #e7e4dd !important;
-  box-shadow: 0 24px 70px rgba(38, 34, 24, .09) !important;
-}
-.app-shell input, .app-shell select, .app-shell textarea,
-.dashboard-shell input, .dashboard-shell select, .dashboard-shell textarea,
-.crypto-terminal input, .crypto-terminal select {
-  background: #fff !important;
-  color: #24242b !important;
-  border: 1px solid #dedbd3 !important;
-  border-radius: 10px;
-}
-input::placeholder, textarea::placeholder { color: #96939b !important; }
-/* Common panels/cards across dashboard, stock, crypto, portfolio and history */
-.research-panel, .trade-panel, .trade-confirm__card {
-  background: #fff !important;
-  color: #24242b !important;
-  border: 1px solid #e7e4dd !important;
-  box-shadow: 0 8px 28px rgba(38, 34, 24, .045) !important;
-}
-.research-muted, .research-disclaimer, .trade-panel__heading p,
-.trade-estimate span, .trade-estimate small { color: #777783 !important; }
-.trade-panel__heading h2, .trade-confirm__card h3 { color: #24242b !important; }
-.trade-quantity, .trade-estimate strong, .trade-confirm__card p { color: #3b3942 !important; }
-.trade-quantity input { background: #fff !important; color: #24242b !important; }
-.secondary-button { background: #f3f1ec !important; color: #34313a !important; border-color: #e2ded5 !important; }
-.eyebrow { color: #6656c7 !important; }
-.research-status { color: #6656c7 !important; background: #efedfb !important; border-color: #ded9f8 !important; }
-.forecast-values > div, .forecast-metrics > div {
-  background: #f8f7f4 !important; border-color: #e9e6df !important;
-}
-.forecast-values span, .forecast-metrics span { color: #777783 !important; }
-.forecast-values strong, .forecast-metrics strong { color: #24242b !important; }
-.trade-confirm { background: rgba(35, 32, 43, .34) !important; }
-.trade-confirm__card { background: #fff !important; }
-.trade-notice--success { color: #26734d !important; background: #edf7f0 !important; }
-.trade-notice--error { color: #a83e48 !important; background: #fff0f0 !important; }
-/* Tables and chart containers */
-table { color: #34313a; }
-th { color: #777783 !important; }
-td { color: #3b3942; }
-.crypto-terminal article {
-  box-shadow: 0 6px 24px rgba(38, 34, 24, .045);
-}
-.crypto-terminal article:hover { box-shadow: 0 14px 34px rgba(38, 34, 24, .09); }
-/* Reduce visual noise and keep touch targets comfortable */
-button { border-radius: 10px; }
-@media (max-width: 700px) {
-  .dashboard-shell { padding: 14px !important; }
-  .login-shell { padding: 16px !important; }
-}
-
-
-/* ── TradeSight Atelier: light royal / eye-comfort design system ── */
-:root {
-  color-scheme: light;
-  --ts-bg: #f4f2eb;
-  --ts-paper: #fffefa;
-  --ts-paper-soft: #f8f7f1;
-  --ts-ink: #26352f;
-  --ts-muted: #718078;
-  --ts-forest: #315c4b;
-  --ts-forest-deep: #25483b;
-  --ts-gold: #ad8750;
-  --ts-border: #e5e0d3;
-  --ts-shadow: 0 12px 34px rgba(47, 57, 47, .07);
-}
-html, body, #root { min-height: 100%; background: var(--ts-bg) !important; color: var(--ts-ink) !important; }
-body {
-  color: var(--ts-ink) !important;
-  background:
-    radial-gradient(ellipse at 8% 0%, rgba(173,135,80,.10), transparent 32rem),
-    radial-gradient(ellipse at 95% 8%, rgba(49,92,75,.07), transparent 28rem),
-    var(--ts-bg) !important;
-  font-family: "DM Sans", Inter, ui-sans-serif, system-ui, sans-serif;
-}
-h1,h2,h3,h4 { color: var(--ts-ink) !important; font-family: "Manrope","DM Sans",sans-serif; letter-spacing: -.035em; }
-p { color: #58665f; }
-a { color: var(--ts-forest); }
-::selection { background: #dce8df; color: #213c31; }
-.dashboard-shell,.app-shell,.login-shell,.crypto-terminal {
-  background: transparent !important; color: var(--ts-ink) !important;
-}
-.dashboard-shell { max-width: 1600px; margin: 0 auto; padding: clamp(16px,2.5vw,38px) !important; }
-.dashboard-shell > div[style*="display: flex"] { gap: 16px; }
+/* Shared page frame and header */
+.app-shell,.dashboard-shell,.login-shell,.crypto-terminal { color: var(--ink) !important; background: transparent !important; }
+.dashboard-shell { width: min(100%, 1600px); margin: 0 auto; padding: clamp(16px,2.5vw,38px) !important; }
+.dashboard-shell > div:first-child { padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .dashboard-shell > div:first-child h1 { font-size: clamp(27px,3vw,39px); font-weight: 800; letter-spacing: -.055em; }
+.dashboard-shell h2 { font-weight: 750; }
 .dashboard-shell section,
 .dashboard-shell [style*="#182322"],
 .dashboard-shell [style*="#202b2b"],
@@ -341,80 +55,105 @@ a { color: var(--ts-forest); }
 .dashboard-shell [style*="#14213d"],
 .dashboard-shell [style*="#0b1628"],
 .dashboard-shell [style*="#151e1e"],
-.dashboard-shell [style*="#202b2b"] {
-  background: var(--ts-paper) !important;
-  color: var(--ts-ink) !important;
-  border-color: var(--ts-border) !important;
-  box-shadow: var(--ts-shadow);
+.dashboard-shell [style*="#07111f"],
+.dashboard-shell [style*="#1f2937"] {
+  background: var(--paper) !important; color: var(--ink) !important;
+  border-color: var(--line) !important; box-shadow: var(--shadow);
 }
 .dashboard-shell [style*="linear-gradient"] {
-  background: linear-gradient(135deg,#fffefa 0%,#f1f4ed 58%,#e9efe8 100%) !important;
-  border-color: #dce5db !important;
-  color: var(--ts-ink) !important;
+  background: linear-gradient(135deg,#fffdfa 0%,#f7f0eb 56%,#f1e9f0 100%) !important;
+  border-color: var(--line) !important; color: var(--ink) !important;
 }
 .dashboard-shell [style*="color: white"],
 .dashboard-shell [style*="color: #eee5d5"],
 .dashboard-shell [style*="color: #d8cbb3"],
 .dashboard-shell [style*="color: #aaa18f"],
 .dashboard-shell [style*="color: #f8fafc"],
-.dashboard-shell [style*="color: #edf2fa"] { color: var(--ts-ink) !important; }
+.dashboard-shell [style*="color: #edf2fa"],
+.dashboard-shell [style*="color: #b8ad9b"] { color: var(--ink) !important; }
 .dashboard-shell [style*="color: #d8c29a"],
-.dashboard-shell [style*="color: #a5b4fc"] { color: var(--ts-forest) !important; }
+.dashboard-shell [style*="color: #a5b4fc"],
+.dashboard-shell [style*="color: #4ade80"],
+.dashboard-shell [style*="color: #22c55e"] { color: var(--plum) !important; }
 .dashboard-shell [style*="background: #0b1118"],
 .dashboard-shell [style*="background: #0b1224"],
-.dashboard-shell [style*="background: #0b1628"] { background: #f4f6f0 !important; }
-.dashboard-shell [style*="background: #182322"],
-.dashboard-shell [style*="background: #202b2b"] { background: var(--ts-paper) !important; }
-.dashboard-shell button {
-  border-radius: 11px;
-  font-weight: 700;
-  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
-}
-.dashboard-shell button:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(49,92,75,.14); }
+.dashboard-shell [style*="background: #0b1628"] { background: var(--paper-soft) !important; }
 .dashboard-shell button[style*="#96794a"],
-.dashboard-shell button[style*="#625840"] {
-  background: var(--ts-forest) !important; color: #fffefa !important; border: 1px solid var(--ts-forest) !important;
+.dashboard-shell button[style*="#625840"],
+.dashboard-shell button[style*="#16a34a"],
+.dashboard-shell button[style*="#166534"] {
+  background: var(--plum) !important; color: #fffdfa !important; border-color: var(--plum) !important;
 }
-.dashboard-shell button[style*="#dc2626"] { background: #a64f4c !important; color: white !important; }
+.dashboard-shell button[style*="#dc2626"] { background: #a65d5b !important; color: white !important; }
+.dashboard-shell button { font-weight: 700; }
+.dashboard-shell button:not(:disabled):hover { box-shadow: 0 9px 20px rgba(118,83,111,.16); }
 .dashboard-shell select,.dashboard-shell input,.dashboard-shell textarea,
 .app-shell input,.app-shell select,.app-shell textarea,
 .crypto-terminal input,.crypto-terminal select {
-  background: #fffefa !important; color: var(--ts-ink) !important;
-  border: 1px solid #dcded4 !important; border-radius: 11px !important;
-  box-shadow: 0 2px 6px rgba(40,50,40,.025);
+  background: #fffdfa !important; color: var(--ink) !important;
+  border: 1px solid #ded4dc !important; border-radius: 11px !important;
+  box-shadow: 0 2px 7px rgba(55,39,53,.025);
 }
 .dashboard-shell select { min-width: 130px; }
-.dashboard-shell [style*="borderRadius: 12px"],
-.dashboard-shell [style*="border-radius: 12px"] { border-radius: 16px !important; }
-.dashboard-shell [style*="boxShadow"] { box-shadow: var(--ts-shadow) !important; }
-.research-panel,.trade-panel,.trade-confirm__card,.crypto-terminal article {
-  background: var(--ts-paper) !important; color: var(--ts-ink) !important;
-  border: 1px solid var(--ts-border) !important; border-radius: 18px !important;
-  box-shadow: var(--ts-shadow) !important;
+.dashboard-shell [style*="borderRadius: 12px"] { border-radius: 16px !important; }
+
+/* Panels, metric tiles, charts, tables */
+.research-panel,.trade-panel,.trade-confirm__card,
+.crypto-terminal article,.dashboard-shell section {
+  border: 1px solid var(--line) !important; border-radius: 18px !important;
+  box-shadow: var(--shadow) !important;
 }
-.research-panel h2,.trade-panel h2,.trade-confirm__card h3 { color: var(--ts-ink) !important; }
-.research-muted,.research-disclaimer,.trade-panel__heading p,.trade-estimate span,.trade-estimate small { color: var(--ts-muted) !important; }
-.eyebrow { color: var(--ts-gold) !important; letter-spacing: .16em; }
-.research-status { color: var(--ts-forest) !important; background: #edf3ed !important; border-color: #dce8dc !important; }
-.forecast-values > div,.forecast-metrics > div { background: #f5f6f0 !important; border: 1px solid #e5e8de !important; }
-.forecast-values span,.forecast-metrics span { color: var(--ts-muted) !important; }
-.forecast-values strong,.forecast-metrics strong { color: var(--ts-ink) !important; }
-.trade-quantity,.trade-estimate strong,.trade-confirm__card p { color: var(--ts-ink) !important; }
-.secondary-button { background: #eef1e9 !important; color: var(--ts-ink) !important; border-color: var(--ts-border) !important; }
-.trade-notice--success { color: #286347 !important; background: #edf5ee !important; }
-.trade-notice--error { color: #9b4141 !important; background: #fbefed !important; }
-.trade-confirm { background: rgba(35,45,38,.38) !important; }
-table { color: var(--ts-ink) !important; }
-th { color: var(--ts-muted) !important; }
-td { color: #3f4d45 !important; }
-.login-shell { background: transparent !important; }
-.login-shell section { background: var(--ts-paper) !important; color: var(--ts-ink) !important; border: 1px solid var(--ts-border) !important; box-shadow: 0 24px 70px rgba(47,57,47,.10) !important; }
+.research-panel,.trade-panel,.trade-confirm__card { background: var(--paper) !important; color: var(--ink) !important; }
+.research-panel h2,.trade-panel h2,.trade-confirm__card h3 { color: var(--ink) !important; }
+.research-muted,.research-disclaimer,.trade-panel__heading p,.trade-estimate span,.trade-estimate small { color: var(--muted) !important; }
+.eyebrow { color: var(--copper) !important; letter-spacing: .15em; }
+.research-status { color: var(--plum) !important; background: var(--plum-soft) !important; border-color: #e4d5e2 !important; }
+.research-status--warning { color: #98633f !important; background: var(--copper-soft) !important; border-color: #ead8c9 !important; }
+.forecast-values > div,.forecast-metrics > div { background: var(--paper-soft) !important; border: 1px solid var(--line) !important; border-radius: 13px !important; }
+.forecast-values span,.forecast-metrics span { color: var(--muted) !important; }
+.forecast-values strong,.forecast-metrics strong { color: var(--ink) !important; }
+.forecast-signal { border-radius: 999px; }
+.trade-panel__heading h2,.trade-confirm__card h3 { color: var(--ink) !important; }
+.trade-quantity,.trade-estimate strong,.trade-confirm__card p { color: var(--ink) !important; }
+.trade-quantity input { background: white !important; color: var(--ink) !important; border-color: var(--line) !important; }
+.simulation-pill { color: #98633f !important; background: var(--copper-soft) !important; border-color: #ead8c9 !important; }
+.trade-actions button[style*="#087f5b"] { background: var(--plum) !important; }
+.trade-actions button[style*="#b42332"] { background: #a65d5b !important; }
+.secondary-button { background: var(--plum-soft) !important; color: var(--plum-deep) !important; border-color: #e4d5e2 !important; }
+.trade-notice--success { color: #76536f !important; background: var(--plum-soft) !important; border-color: #e4d5e2 !important; }
+.trade-notice--error { color: #9c4f4d !important; background: #f9eeeb !important; }
+.trade-confirm { background: rgba(45,35,46,.34) !important; backdrop-filter: blur(8px); }
+table { color: var(--ink) !important; }
+th { color: var(--muted) !important; }
+td { color: #514956 !important; }
+.crypto-terminal { min-height: 100vh; padding: clamp(12px,2vw,26px) !important; }
+.crypto-terminal article { background: var(--paper) !important; color: var(--ink) !important; }
+.crypto-terminal button { color: var(--ink); }
 .crypto-terminal input[type="time"],.crypto-terminal input[type="number"] { color-scheme: light !important; }
-button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible { outline: 2px solid var(--ts-gold) !important; outline-offset: 3px; }
+
+/* Authentication */
+.login-shell { min-height: 100vh; padding: 20px; }
+.login-shell section {
+  background: var(--paper) !important; color: var(--ink) !important;
+  border: 1px solid var(--line) !important; border-radius: 24px !important;
+  box-shadow: 0 28px 80px rgba(55,39,53,.12) !important;
+}
+.login-shell section h1 { color: var(--ink) !important; }
+.login-shell section p { color: var(--muted) !important; }
+.login-shell input { width: 100%; background: #fffdfa !important; color: var(--ink) !important; border: 1px solid var(--line) !important; }
+.login-shell button[style*="#16a34a"],.login-shell button[style*="#166534"] {
+  background: var(--plum) !important; color: #fffdfa !important;
+}
+.login-shell button[style*="#d8c29a"] { color: var(--plum) !important; }
+
+/* Responsive polish */
 @media(max-width:700px) {
   .dashboard-shell { padding: 14px !important; }
   .dashboard-shell > div:first-child { align-items: center; }
   .dashboard-shell > div:first-child h1 { font-size: 25px; }
   .research-panel,.trade-panel { padding: 17px !important; }
+  .login-shell section { padding: 25px !important; }
 }
-@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+@media(prefers-reduced-motion:reduce) {
+  *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
