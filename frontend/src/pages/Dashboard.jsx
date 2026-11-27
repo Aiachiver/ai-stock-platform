@@ -196,19 +196,20 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeView, symbol]);
 
-  // Show the faster forecast as soon as it arrives. The heavier calibrated
-  // intelligence check runs independently and upgrades the signal when ready.
+  // Keep the dashboard's primary signal lightweight. Full model comparison,
+  // holdout evaluation and advanced intelligence run only in the Models view.
   useEffect(() => {
     if (activeView !== "dashboard") return;
     const requestId = ++quickSignalRequestSequence.current;
     setQuickSignalLoading(true);
-    setAdvancedSignalLoading(true);
     setDashboardForecast(null);
     setDashboardIntelligence(null);
 
-    API.get(`/predict/${symbol}`, { timeout: 90000 })
+    API.get(`/predict/${symbol}`, { timeout: 45000 })
       .then((response) => {
-        if (requestId === quickSignalRequestSequence.current) setDashboardForecast(response.data || {});
+        if (requestId === quickSignalRequestSequence.current) {
+          setDashboardForecast(response.data || {});
+        }
       })
       .catch(() => {
         if (requestId === quickSignalRequestSequence.current) {
@@ -219,22 +220,8 @@ function Dashboard() {
         if (requestId === quickSignalRequestSequence.current) setQuickSignalLoading(false);
       });
 
-    API.get(`/intelligence/${symbol}`, { timeout: 120000 })
-      .then((response) => {
-        if (requestId === quickSignalRequestSequence.current) setDashboardIntelligence(response.data || {});
-      })
-      .catch(() => {
-        if (requestId === quickSignalRequestSequence.current) {
-          setDashboardIntelligence({ error: "Advanced validation is temporarily unavailable." });
-        }
-      })
-      .finally(() => {
-        if (requestId === quickSignalRequestSequence.current) setAdvancedSignalLoading(false);
-      });
-
     return () => { quickSignalRequestSequence.current += 1; };
   }, [activeView, symbol]);
-
 
   // WebSocket live price.
   useEffect(() => {
