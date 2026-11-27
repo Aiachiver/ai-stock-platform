@@ -200,36 +200,15 @@ function Dashboard() {
     setQuickSignalLoading(true);
     setDashboardForecast(null);
     setDashboardIntelligence(null);
-    // Load forecast and intelligence independently. The dashboard decision
-    // must not stay stuck on ANALYZING while the separate price forecast runs.
-    API.get(`/predict/${symbol}`, { timeout: 90000 })
-      .then((response) => {
-        if (requestId === quickSignalRequestSequence.current) {
-          setDashboardForecast(response.data || { error: "Forecast response was empty." });
-        }
-      })
-      .catch(() => {
-        if (requestId === quickSignalRequestSequence.current) {
-          setDashboardForecast({ error: "Forecast temporarily unavailable." });
-        }
-      });
-
-    API.get(`/intelligence/${symbol}`, { timeout: 120000 })
-      .then((response) => {
-        if (requestId === quickSignalRequestSequence.current) {
-          setDashboardIntelligence(response.data || { error: "Trade decision response was empty." });
-        }
-      })
-      .catch(() => {
-        if (requestId === quickSignalRequestSequence.current) {
-          setDashboardIntelligence({ error: "Trade decision temporarily unavailable." });
-        }
-      })
-      .finally(() => {
-        if (requestId === quickSignalRequestSequence.current) {
-          setQuickSignalLoading(false);
-        }
-      });
+    Promise.allSettled([
+      API.get(`/predict/${symbol}`, { timeout: 90000 }),
+      API.get(`/intelligence/${symbol}`, { timeout: 120000 })
+    ]).then((results) => {
+      if (requestId !== quickSignalRequestSequence.current) return;
+      setDashboardForecast(results[0].status === "fulfilled" ? results[0].value.data : { error: "Forecast temporarily unavailable." });
+      setDashboardIntelligence(results[1].status === "fulfilled" ? results[1].value.data : { error: "Trade decision temporarily unavailable." });
+      setQuickSignalLoading(false);
+    });
     return () => { quickSignalRequestSequence.current += 1; };
   }, [activeView, symbol]);
 
