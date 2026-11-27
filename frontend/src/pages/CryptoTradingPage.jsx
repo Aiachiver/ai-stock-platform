@@ -18,14 +18,16 @@ export default function CryptoTradingPage() {
   const [timeframe, setTimeframe] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [updatedAt, setUpdatedAt] = useState(null);\n  const [refreshing, setRefreshing] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [orderState, setOrderState] = useState({ loading: false, message: "", error: false });
 
   useEffect(() => {
     let active = true;
     const load = async (quiet = false) => {
-      if (!quiet && active) setLoading(true);\n      if (quiet && active) setRefreshing(true);
+      if (!quiet && active) setLoading(true);
+      if (quiet && active) setRefreshing(true);
       try {
         const response = await API.get(`/intraday/${asset.symbol}`, { timeout: 35000 });
         if (!active) return;
@@ -35,7 +37,8 @@ export default function CryptoTradingPage() {
       } catch {
         if (active) setError("Crypto candles are temporarily unavailable. The data provider may be delayed or rate-limited.");
       } finally {
-        if (active && !quiet) setLoading(false);\n        if (active && quiet) setRefreshing(false);
+        if (active && !quiet) setLoading(false);
+        if (active && quiet) setRefreshing(false);
       }
     };
     setData(null);
@@ -99,8 +102,11 @@ export default function CryptoTradingPage() {
   const horizons = data?.horizons || [];
   const buySignal = horizons.filter(h => h.signal === "BUY").length;
   const sellSignal = horizons.filter(h => h.signal === "SELL BIAS").length;
-  const strongestSignal = horizons.reduce((best, item) => Math.abs(Number(item.up_probability_pct || 50) - 50) > Math.abs(Number(best?.up_probability_pct || 50) - 50) ? item : best, null);\n  const strongestUp = Number(strongestSignal?.up_probability_pct || 50);\n  const overall = strongestUp >= 60 ? "UP BIAS" : strongestUp <= 40 ? "DOWN BIAS" : "WAIT — NO CLEAR EDGE";
-  const overallColor = overall === "UP BIAS" ? "#34d399" : overall === "DOWN BIAS" ? "#fb7185" : "#fbbf24";\n  const decisionText = overall === "UP BIAS" ? `Upward movement has the stronger technical signal over the next ${strongestSignal?.minutes} minutes.` : overall === "DOWN BIAS" ? `Downward movement has the stronger technical signal over the next ${strongestSignal?.minutes} minutes.` : "Signals are mixed or weak. Waiting is safer than forcing a trade.";
+  const strongestSignal = horizons.reduce((best, item) => Math.abs(Number(item.up_probability_pct || 50) - 50) > Math.abs(Number(best?.up_probability_pct || 50) - 50) ? item : best, null);
+  const strongestUp = Number(strongestSignal?.up_probability_pct || 50);
+  const overall = strongestUp >= 60 ? "UP BIAS" : strongestUp <= 40 ? "DOWN BIAS" : "WAIT — NO CLEAR EDGE";
+  const overallColor = overall === "UP BIAS" ? "#34d399" : overall === "DOWN BIAS" ? "#fb7185" : "#fbbf24";
+  const decisionText = overall === "UP BIAS" ? `Upward movement has the stronger technical signal over the next ${strongestSignal?.minutes} minutes.` : overall === "DOWN BIAS" ? `Downward movement has the stronger technical signal over the next ${strongestSignal?.minutes} minutes.` : "Signals are mixed or weak. Waiting is safer than forcing a trade.";
 
   return (
     <main style={{ minHeight: "100vh", background: "#080f1d", color: "#e5edf8", padding: "clamp(12px,2vw,26px)", boxSizing: "border-box" }}>
