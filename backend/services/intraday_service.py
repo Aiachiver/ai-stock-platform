@@ -1,6 +1,7 @@
 """Intraday candles and transparent short-horizon technical signals.
 
-Yahoo Finance intraday data may be delayed, incomplete, rate-limited, or unavailable.
+Crypto uses Binance Spot klines to match the live Binance trade stream.
+Equities use Yahoo Finance; provider timestamps and delays can vary.
 The 5–30 minute outputs are rule-based technical scores, not calibrated ML forecasts.
 """
 from __future__ import annotations
@@ -8,16 +9,48 @@ import time
 from threading import Lock, Thread
 import numpy as np
 import pandas as pd
+import requests
 import yfinance as yf
 
+_CRYPTO_PAIRS = {
+    "BTC-USD": "BTCUSDT", "ETH-USD": "ETHUSDT", "SOL-USD": "SOLUSDT",
+    "XRP-USD": "XRPUSDT", "DOGE-USD": "DOGEUSDT", "BNB-USD": "BNBUSDT",
+}
+_BINANCE_API = "https://api.binance.com/api/v3/klines"
 _CACHE = {}
 _LOCKS = {}
 _GUARD = Lock()
 _REFRESHING = set()
-_CACHE_TTL = 20
+_CACHE_TTL = 5
 _HORIZONS = (5, 10, 15, 20, 25, 30)
 
+
+def _get_crypto_frame(symbol):
+    pair = _CRYPTO_PAIRS[symbol]
+    response = requests.get(
+        _BINANCE_API, params={"symbol": pair, "interval": "1m", "limit": 240},
+        timeout=12
+    )
+    response.raise_for_status()
+    rows = response.json()
+    if not rows:
+        raise ValueError("Binance returned no crypto candles")
+    columns = ["open_time", "Open", "High", "Low", "Close", "Volume",
+               "close_time", "quote_volume", "trades", "taker_base",
+               "taker_quote", "ignored"]
+    frame = pd.DataFrame(rows, columns=columns)
+    frame.index = pd.to_datetime(frame.pop("open_time").astype("int64"), unit="ms", utc=True)
+    for col in ("Open", "High", "Low", "Close", "Volume"):
+        frame[col] = pd.to_numeric(frame[col], errors="coerce")
+    frame = frame[["Open", "High", "Low", "Close", "Volume"]].dropna()
+    if len(frame) < 10:
+        raise ValueError("Insufficient Binance crypto candles")
+    return frame
+
+
 def _get_frame(symbol):
+    if symbol in _CRYPTO_PAIRS:
+        return _get_crypto_frame(symbol)
     attempts = (
         lambda: yf.Ticker(symbol).history(period="1d", interval="1m", auto_adjust=False),
         lambda: yf.download(symbol, period="1d", interval="1m", auto_adjust=False, progress=False, threads=False),
@@ -37,6 +70,7 @@ def _get_frame(symbol):
             if len(frame) >= 10: return frame
         except Exception as exc: print(f"INTRADAY DATA ATTEMPT FAILED ({symbol}):", exc)
     raise ValueError("Insufficient intraday candles from market-data provider")
+
 
 def _build_payload(symbol):
     frame = _get_frame(symbol)
@@ -63,23 +97,27 @@ def _build_payload(symbol):
     candles = []
     for stamp, row in frame.tail(240).iterrows():
         candles.append({
-            "time": stamp.isoformat(), "open": round(float(row.Open), 4),
-            "high": round(float(row.High), 4), "low": round(float(row.Low), 4),
-            "close": round(float(row.Close), 4), "volume": int(max(0, float(row.Volume or 0)))
+            "time": stamp.isoformat(), "open": round(float(row.Open), 8),
+            "high": round(float(row.High), 8), "low": round(float(row.Low), 8),
+            "close": round(float(row.Close), 8), "volume": float(row.Volume or 0)
         })
     first, last = float(close.iloc[0]), float(close.iloc[-1])
     vol = float(returns.tail(20).std()) if len(returns) else 0.0
+    is_crypto = symbol in _CRYPTO_PAIRS
+    provider = "Binance Spot" if is_crypto else "Yahoo Finance"
     return {
-        "symbol": symbol, "interval": "1m", "current_price": round(last, 4),
+        "symbol": symbol, "interval": "1m", "current_price": last,
         "change_pct": round((last / first - 1) * 100, 3),
         "as_of": frame.index[-1].isoformat(), "candles": candles, "horizons": horizons,
-        "indicators": {"ema_fast": round(fast, 4), "ema_slow": round(slow, 4),
+        "data_source": provider, "is_live": False,
+        "indicators": {"ema_fast": fast, "ema_slow": slow,
                        "momentum_5m_pct": round(momentum * 100, 3),
                        "recent_volatility_pct": round((vol if np.isfinite(vol) else 0) * 100, 3),
                        "trend": "UP" if fast > slow else "DOWN"},
-        "data_note": "Yahoo Finance 1-minute candles; may be delayed, rate-limited, or unavailable.",
+        "data_note": f"{provider} 1-minute candles; exchange prices can differ slightly across venues.",
         "signal_note": "UP/DOWN values are heuristic technical scores, not calibrated probabilities or trained 5–30 minute ML forecasts. SELL BIAS means avoid a new long position; no short order is executed."
     }
+
 
 def _refresh_symbol(key, lock):
     try:
@@ -117,7 +155,6 @@ def get_intraday_analysis(symbol):
             payload["refreshing"] = True
             return payload
 
-    # First-ever request has no cached snapshot, so it must wait for market data.
     with lock:
         with _GUARD:
             cached = _CACHE.get(key)
