@@ -49,19 +49,19 @@ function Login({ setLoggedIn }) {
   };
 
   return (
-    <main style={{
+    <main className="app-shell login-shell" style={{
       minHeight: "100vh", display: "flex", justifyContent: "center",
-      alignItems: "center", background: "linear-gradient(135deg, #07111f, #172554)",
+      alignItems: "center", background: "linear-gradient(135deg, #07111f, #202b2b)",
       padding: 20, boxSizing: "border-box"
     }}>
       <section style={{
-        background: "#111827", border: "1px solid #263449", padding: 36,
+        background: "#151e1e", border: "1px solid #514c40", padding: 36,
         borderRadius: 20, width: 380, maxWidth: "100%", textAlign: "center",
         boxShadow: "0 24px 70px rgba(0,0,0,.35)"
       }}>
         <div style={{ fontSize: 34 }}>◈</div>
         <h1 style={{ color: "white", margin: "8px 0" }}>TradeSight AI</h1>
-        <p style={{ color: "#9ca3af", marginBottom: 26 }}>
+        <p style={{ color: "#aaa18f", marginBottom: 26 }}>
           {registerMode ? "Create your research workspace" : "Market research · ML insights · Paper trading"}
         </p>
 
@@ -71,7 +71,7 @@ function Login({ setLoggedIn }) {
           onKeyDown={handleKeyDown} disabled={loading}
           style={{
             boxSizing: "border-box", width: "100%", padding: 13, marginBottom: 14,
-            borderRadius: 9, border: "1px solid #374151", outline: "none",
+            borderRadius: 9, border: "1px solid #514c40", outline: "none",
             background: "#1f2937", color: "white", fontSize: 15
           }}
         />
@@ -83,7 +83,7 @@ function Login({ setLoggedIn }) {
           onKeyDown={handleKeyDown} disabled={loading}
           style={{
             boxSizing: "border-box", width: "100%", padding: 13, marginBottom: 18,
-            borderRadius: 9, border: "1px solid #374151", outline: "none",
+            borderRadius: 9, border: "1px solid #514c40", outline: "none",
             background: "#1f2937", color: "white", fontSize: 15
           }}
         />
@@ -99,12 +99,12 @@ function Login({ setLoggedIn }) {
         <button onClick={() => { setRegisterMode(!registerMode); setPass(""); }}
           disabled={loading} style={{
             marginTop: 17, background: "transparent", border: "none",
-            color: "#93c5fd", cursor: "pointer", fontSize: 14
+            color: "#d8c29a", cursor: "pointer", fontSize: 14
           }}>
           {registerMode ? "Already registered? Sign in" : "Create an account"}
         </button>
 
-        <p style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.5, margin: "24px 0 0" }}>
+        <p style={{ color: "#aaa18f", fontSize: 11, lineHeight: 1.5, margin: "24px 0 0" }}>
           Research and educational paper-trading workspace only. Market data may be delayed.
           Model outputs are experimental and are not investment advice.
         </p>
