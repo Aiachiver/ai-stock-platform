@@ -22,6 +22,8 @@ export default function CryptoTradingPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [eventTarget, setEventTarget] = useState("");
+  const [eventMinutes, setEventMinutes] = useState(10);
   const [orderState, setOrderState] = useState({ loading: false, message: "", error: false });
 
   useEffect(() => {
@@ -109,6 +111,28 @@ export default function CryptoTradingPage() {
   const overallColor = overall === "UP BIAS" ? "#34d399" : overall === "DOWN BIAS" ? "#fb7185" : "#fbbf24";
   const decisionText = overall === "UP BIAS" ? `Upward movement has the stronger technical signal over the next ${strongestSignal?.minutes} minutes.` : overall === "DOWN BIAS" ? `Downward movement has the stronger technical signal over the next ${strongestSignal?.minutes} minutes.` : "Signals are mixed or weak. Waiting is safer than forcing a trade.";
 
+  // Binary-event estimate: probability that the expiry price finishes at/above a user target.
+  // Uses recent 1-minute log returns with a conservative drift shrink; it is not a guarantee.
+  const eventForecast = useMemo(() => {
+    const closes = (data?.candles || []).map(c => Number(c.close)).filter(v => Number.isFinite(v) && v > 0);
+    const target = Number(eventTarget);
+    if (closes.length < 20 || !Number.isFinite(target) || target <= 0) return null;
+    const logReturns = [];
+    for (let i = Math.max(1, closes.length - 61); i < closes.length; i++) logReturns.push(Math.log(closes[i] / closes[i - 1]));
+    if (logReturns.length < 15) return null;
+    const mean = logReturns.reduce((a, b) => a + b, 0) / logReturns.length;
+    const variance = logReturns.reduce((a, b) => a + (b - mean) ** 2, 0) / (logReturns.length - 1);
+    const sigma = Math.sqrt(Math.max(variance, 1e-12));
+    const horizon = Number(eventMinutes);
+    const spot = closes[closes.length - 1];
+    const expected = spot * Math.exp(mean * horizon * 0.25);
+    const horizonSigma = sigma * Math.sqrt(horizon);
+    const z = (Math.log(target / spot) - mean * horizon * 0.25) / Math.max(horizonSigma, 1e-8);
+    const erf = x => { const sign = x < 0 ? -1 : 1; x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); const y = 1 - (((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x); return sign*y; };
+    const yes = Math.max(0, Math.min(1, 0.5 * (1 - erf(z / Math.sqrt(2)))));
+    return { spot, expected, yes: yes * 100, no: (1 - yes) * 100, sigma: sigma * 100, samples: logReturns.length };
+  }, [data, eventTarget, eventMinutes]);
+
   return (
     <main style={{ minHeight: "100vh", background: "#080f1d", color: "#e5edf8", padding: "clamp(12px,2vw,26px)", boxSizing: "border-box" }}>
       <div style={{ maxWidth: 1500, margin: "0 auto" }}>
@@ -137,6 +161,24 @@ export default function CryptoTradingPage() {
             {orderState.message && <p style={{ color: orderState.error ? "#fda4af" : "#6ee7b7", fontSize: 12, lineHeight: 1.5 }}>{orderState.message}</p>}
             <div style={{ borderTop: "1px solid #29394f", marginTop: 18, paddingTop: 15 }}><div style={{ color: "#94a3b8", fontSize: 11 }}>TECHNICAL SNAPSHOT</div><p>Trend: <b style={{ color: data?.indicators?.trend === "UP" ? "#34d399" : "#fb7185" }}>{data?.indicators?.trend || "—"}</b></p><p>5m momentum: <b>{data?.indicators?.momentum_5m_pct ?? "—"}%</b></p><p>Fast EMA: <b>{usd(data?.indicators?.ema_fast)}</b></p><p>Slow EMA: <b>{usd(data?.indicators?.ema_slow)}</b></p></div>
           </aside>
+        </section>
+
+        <section style={{ background: "linear-gradient(140deg,#13243a,#0b1728)", border: "1px solid #31506b", borderRadius: 15, padding: 18, marginBottom: 15 }}>
+          <div style={{ color: "#38bdf8", fontSize: 11, fontWeight: 900, letterSpacing: ".12em" }}>BINARY EVENT PREDICTOR</div>
+          <h2 style={{ margin: "7px 0" }}>{asset.name} to be priced at target or more?</h2>
+          <p style={{ color: "#94a3b8", fontSize: 12, marginTop: 0 }}>Set a target price and expiry like prediction-market questions. This estimates the chance the price finishes at/above your target at expiry.</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
+            <label style={{ color: "#94a3b8", fontSize: 12 }}>Target price (USD)<input type="number" min="0" step="any" value={eventTarget} onChange={e => setEventTarget(e.target.value)} placeholder={data ? String(data.current_price) : "e.g. 61528"} style={{ display: "block", width: "100%", boxSizing: "border-box", marginTop: 6, padding: 11, borderRadius: 8, border: "1px solid #34445b", background: "#081321", color: "white" }}/></label>
+            <label style={{ color: "#94a3b8", fontSize: 12 }}>Expiry window<select value={eventMinutes} onChange={e => setEventMinutes(Number(e.target.value))} style={{ display: "block", width: "100%", marginTop: 6, padding: 11, borderRadius: 8, border: "1px solid #34445b", background: "#081321", color: "white" }}>{[5,10,15,30,60,120].map(m => <option key={m} value={m}>{m} minutes</option>)}</select></label>
+          </div>
+          {eventForecast ? <div style={{ marginTop: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ background: "#103326", border: "1px solid #1d8058", borderRadius: 10, padding: 14 }}><div style={{ color: "#86efac", fontSize: 12 }}>YES · at/above target</div><strong style={{ color: "#6ee7b7", fontSize: 27 }}>{eventForecast.yes.toFixed(1)}%</strong></div>
+              <div style={{ background: "#3a2029", border: "1px solid #8c3548", borderRadius: 10, padding: 14 }}><div style={{ color: "#fda4af", fontSize: 12 }}>NO · below target</div><strong style={{ color: "#fda4af", fontSize: 27 }}>{eventForecast.no.toFixed(1)}%</strong></div>
+            </div>
+            <div style={{ display: "flex", gap: 18, flexWrap: "wrap", color: "#cbd5e1", fontSize: 12, marginTop: 12 }}><span>Current: <b>{usd(eventForecast.spot)}</b></span><span>Model estimate at expiry: <b>{usd(eventForecast.expected)}</b></span><span>1m volatility: <b>{eventForecast.sigma.toFixed(3)}%</b></span></div>
+            <p style={{ color: "#fbbf24", fontSize: 11, lineHeight: 1.5, marginBottom: 0 }}>Experimental statistical estimate from the latest {eventForecast.samples} one-minute returns. It is not historically calibrated yet; provider delays, sudden news and market jumps can make it wrong. Not financial advice.</p>
+          </div> : <p style={{ color: "#fbbf24", fontSize: 12 }}>Waiting for enough candle data and a valid target price.</p>}
         </section>
 
         <section style={{ background: "#111c2e", border: "1px solid #263449", borderRadius: 15, padding: 17 }}>
