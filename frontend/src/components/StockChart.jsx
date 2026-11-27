@@ -8,7 +8,7 @@ function StockChart({ data, error, symbol = "Stock" }) {
 
   if (!validData.length) {
     return (
-      <div style={{ background: "#1e293b", color: "#cbd5e1", borderRadius: 14, padding: 24, minHeight: 220 }}>
+      <div style={{ background: "#182322", color: "#d8cbb3", borderRadius: 14, padding: 24, minHeight: 220 }}>
         <h3 style={{ marginTop: 0 }}>{symbol} · Historical Market Price</h3>
         {error || "Price history is loading or temporarily unavailable."}
       </div>
@@ -27,8 +27,8 @@ function StockChart({ data, error, symbol = "Stock" }) {
     chart: {
       type: "area",
       height: 390,
-      background: "#1e293b",
-      foreColor: "#cbd5e1",
+      background: "#182322",
+      foreColor: "#d8cbb3",
       toolbar: { show: true },
       animations: { enabled: true, easing: "easeinout", speed: 350 },
       zoom: { enabled: true }
@@ -46,25 +46,25 @@ function StockChart({ data, error, symbol = "Stock" }) {
     markers: { size: 0, hover: { size: 4 } },
     xaxis: {
       type: "datetime",
-      labels: { datetimeUTC: false, style: { colors: "#94a3b8" } },
+      labels: { datetimeUTC: false, style: { colors: "#aaa18f" } },
       tooltip: { enabled: false }
     },
     yaxis: {
-      labels: { style: { colors: "#94a3b8" }, formatter: (value) => `$${value.toFixed(2)}` }
+      labels: { style: { colors: "#aaa18f" }, formatter: (value) => `$${value.toFixed(2)}` }
     },
-    grid: { borderColor: "#334155", strokeDashArray: 4 },
+    grid: { borderColor: "#514c40", strokeDashArray: 4 },
     tooltip: {
       theme: "dark",
       x: { format: "dd MMM yyyy" },
       y: { formatter: (value) => `$${value.toFixed(2)}` }
     },
-    noData: { text: "No price data", style: { color: "#cbd5e1" } }
+    noData: { text: "No price data", style: { color: "#d8cbb3" } }
   };
 
   return (
     <div style={{ minHeight: 390 }}>
       <Chart options={options} series={series} type="area" height={390} />
-      <p style={{ color: "#94a3b8", fontSize: 12, margin: "8px 2px 0" }}>
+      <p style={{ color: "#aaa18f", fontSize: 12, margin: "8px 2px 0" }}>
         Daily closing prices · Historical market data may be delayed; this is not a tick-by-tick live exchange feed.
       </p>
     </div>
