@@ -521,7 +521,7 @@ function Dashboard() {
 
       <IntradayTradingPanel symbol={symbol} />
 
-      {/* QUICK AI DECISION: fast forecast first, advanced validation in background */}
+      {/* QUICK AI DECISION: lightweight forecast; full validation is available in Models */}
       {(() => {
         const validated = dashboardIntelligence?.prediction;
         const fastSignal = String(dashboardForecast?.signal || "").toUpperCase();
@@ -591,15 +591,7 @@ function Dashboard() {
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 15 }}>
               <div style={{ color: "#a5b4fc", fontSize: 12 }} aria-live="polite">
-                {quickSignalLoading
-                  ? "① Preparing quick forecast…"
-                  : !hasFastForecast
-                    ? "Quick forecast unavailable"
-                    : advancedSignalLoading
-                      ? "✓ Quick forecast ready · ② Running calibrated validation in background…"
-                      : hasAdvancedDecision
-                        ? "✓ Forecast and calibrated validation complete"
-                        : "Quick forecast ready · Advanced validation unavailable"}
+                {quickSignalLoading ? "Preparing stock forecast…" : hasFastForecast ? "Quick forecast ready · Open Models for full historical validation" : "Quick forecast unavailable"}
               </div>
               <button type="button" onClick={() => setActiveView("models")} style={{ background: "#2563eb", color: "white", border: 0, borderRadius: 9, padding: "10px 15px", cursor: "pointer", fontWeight: 700 }}>
                 Explore full analysis →
