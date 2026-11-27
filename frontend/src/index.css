@@ -182,3 +182,122 @@ td { color: #514956 !important; }
 @media (prefers-reduced-motion: reduce) {
   *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+/* Dark appearance — selected from the dashboard header and saved per browser. */
+.dashboard-shell.theme-dark {
+  color-scheme: dark !important;
+  --page: #0b1118;
+  --surface: #151e2a;
+  --surface-muted: #1b2634;
+  --surface-plum: #282337;
+  --ink: #edf2fa;
+  --muted: #a7b2c3;
+  --plum: #b49ad0;
+  --plum-dark: #ddc9f0;
+  --copper: #d5a879;
+  --copper-soft: #30271f;
+  --line: #2b394a;
+  --positive: #4ade80;
+  --negative: #f87171;
+  --shadow: 0 14px 38px rgba(0,0,0,.22);
+  background: var(--page) !important;
+}
+.dashboard-shell.theme-dark,
+.dashboard-shell.theme-dark body {
+  color: var(--ink) !important;
+}
+.theme-dark.dashboard-shell,
+.theme-dark .dashboard-shell {
+  background: var(--page) !important;
+  color: var(--ink) !important;
+}
+.theme-dark.dashboard-shell h1,
+.theme-dark.dashboard-shell h2,
+.theme-dark.dashboard-shell h3,
+.theme-dark.dashboard-shell h4,
+.theme-dark.dashboard-shell strong,
+.theme-dark.dashboard-shell label,
+.theme-dark.dashboard-shell b {
+  color: var(--ink) !important;
+}
+.theme-dark.dashboard-shell p,
+.theme-dark.dashboard-shell small,
+.theme-dark.dashboard-shell td {
+  color: #c0cad8 !important;
+}
+.theme-dark.dashboard-shell section,
+.theme-dark.dashboard-shell article,
+.theme-dark.dashboard-shell [style*="borderRadius"],
+.theme-dark.dashboard-shell [style*="border-radius"],
+.theme-dark.dashboard-shell [style*="background"] {
+  background-color: var(--surface) !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+.theme-dark.dashboard-shell [style*="linear-gradient"] {
+  background: linear-gradient(135deg, #1b2634 0%, #20243a 60%, #111923 100%) !important;
+}
+.theme-dark.dashboard-shell button {
+  color: var(--ink);
+}
+.theme-dark.dashboard-shell button[style*="background"],
+.theme-dark.dashboard-shell button[style*="backgroundColor"] {
+  background: #72558d !important;
+  color: #fff !important;
+  border-color: #8c70a8 !important;
+}
+.theme-dark.dashboard-shell button[style*="transparent"] {
+  background: transparent !important;
+  color: var(--ink) !important;
+}
+.theme-dark.dashboard-shell input,
+.theme-dark.dashboard-shell select,
+.theme-dark.dashboard-shell textarea {
+  background: #101925 !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+.theme-dark.dashboard-shell option {
+  background: #151e2a;
+  color: var(--ink);
+}
+.theme-dark.dashboard-shell table,
+.theme-dark.dashboard-shell th,
+.theme-dark.dashboard-shell td {
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+.theme-dark.dashboard-shell .research-panel,
+.theme-dark.dashboard-shell .trade-panel,
+.theme-dark.dashboard-shell .trade-confirm__card,
+.theme-dark.dashboard-shell .crypto-terminal article,
+.theme-dark.dashboard-shell .history-shell,
+.theme-dark.dashboard-shell .model-shell > section {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+.theme-dark.dashboard-shell .research-status,
+.theme-dark.dashboard-shell .secondary-button,
+.theme-dark.dashboard-shell .trade-notice--success {
+  background: #282337 !important;
+  color: #ddc9f0 !important;
+  border-color: #493b59 !important;
+}
+.theme-dark.dashboard-shell .trade-notice--error {
+  background: #351f25 !important;
+  color: #ffb4b4 !important;
+}
+.theme-dark.dashboard-shell .login-shell section {
+  background: var(--surface) !important;
+}
+.theme-dark.dashboard-shell .apexcharts-tooltip {
+  background: #151e2a !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+.theme-dark.dashboard-shell input::placeholder,
+.theme-dark.dashboard-shell textarea::placeholder {
+  color: #8794a7 !important;
+}
