@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Chart from "react-apexcharts";
-import API from "../services/api";
+import API, { API_BASE_URL } from "../services/api";
 
 const ASSETS = [
   { symbol: "BTC-USD", name: "Bitcoin", ticker: "BTC", color: "#f59e0b" },
@@ -20,6 +20,8 @@ export default function CryptoTradingPage() {
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [livePrice, setLivePrice] = useState(null);
+  const [streamStatus, setStreamStatus] = useState("connecting");
 
   useEffect(() => {
     let active = true;
@@ -40,9 +42,63 @@ export default function CryptoTradingPage() {
       }
     };
     setData(null);
+    setLivePrice(null);
     load(false);
-    const timer = setInterval(() => load(true), 20000);
+    const timer = setInterval(() => load(true), 120000);
     return () => { active = false; clearInterval(timer); };
+  }, [asset]);
+
+  // Exchange trade ticks update the live quote and the currently forming candle.
+  useEffect(() => {
+    let socket;
+    let retryTimer;
+    let stopped = false;
+    let retryDelay = 1000;
+    const connect = () => {
+      if (stopped) return;
+      const wsBase = API_BASE_URL.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
+      socket = new WebSocket(`${wsBase}/ws/crypto/${asset.symbol}`);
+      socket.onopen = () => { retryDelay = 1000; setStreamStatus("connecting"); };
+      socket.onmessage = (event) => {
+        try {
+          const tick = JSON.parse(event.data);
+          if (tick.status === "connected") { setStreamStatus("live"); return; }
+          if (tick.status === "reconnecting") { setStreamStatus("reconnecting"); return; }
+          if (!Number.isFinite(Number(tick.price))) return;
+          const price = Number(tick.price);
+          const stamp = Number(tick.event_time) || Date.now();
+          setLivePrice(price);
+          setUpdatedAt(new Date(stamp));
+          setStreamStatus("live");
+          setData(previous => {
+            if (!previous) return previous;
+            const history = [...(previous.candles || [])];
+            const minute = Math.floor(stamp / 60000) * 60000;
+            const last = history[history.length - 1];
+            if (last && Math.floor(new Date(last.time).getTime() / 60000) === Math.floor(stamp / 60000)) {
+              history[history.length - 1] = { ...last, high: Math.max(Number(last.high), price), low: Math.min(Number(last.low), price), close: price, volume: Number(last.volume || 0) + Number(tick.quantity || 0) };
+            } else {
+              history.push({ time: new Date(minute).toISOString(), open: last ? Number(last.close) : price, high: price, low: price, close: price, volume: Number(tick.quantity || 0) });
+            }
+            return { ...previous, current_price: price, candles: history.slice(-240), data_source: "Binance Spot live trades", is_live: true };
+          });
+        } catch { /* Ignore malformed messages and keep the stream alive. */ }
+      };
+      socket.onerror = () => setStreamStatus("reconnecting");
+      socket.onclose = () => {
+        if (!stopped) {
+          setStreamStatus("reconnecting");
+          retryTimer = setTimeout(connect, retryDelay);
+          retryDelay = Math.min(retryDelay * 2, 15000);
+        }
+      };
+    };
+    connect();
+    return () => {
+      stopped = true;
+      clearTimeout(retryTimer);
+      if (socket && socket.readyState < WebSocket.CLOSING) socket.close();
+    };
   }, [asset]);
 
   const candles = useMemo(() => {
@@ -123,10 +179,10 @@ export default function CryptoTradingPage() {
 
         <section style={{marginBottom:15}}>
           <div style={{background:"linear-gradient(140deg,#14243a,#0d1728)",border:"1px solid #2b405b",borderRadius:15,padding:17}}>
-            <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><span style={{color:"#94a3b8",fontSize:11}}>SELECTED MARKET</span><h2 style={{margin:"5px 0"}}>{asset.name} <span style={{color:"#94a3b8",fontSize:14}}>{asset.ticker}/USD</span></h2></div><div style={{textAlign:"right"}}><strong style={{fontSize:27}}>{usd(data?.current_price)}</strong><div style={{color:Number(data?.change_pct)>=0?"#34d399":"#fb7185",fontSize:13}}>{data?.change_pct==null?"—":`${data.change_pct>0?"+":""}${data.change_pct}% today`}</div></div></div>
-            <div style={{display:"flex",gap:7,flexWrap:"wrap",margin:"14px 0"}}>{[1,5,15,30].map(m=><button key={m} onClick={()=>setTimeframe(m)} style={{padding:"7px 13px",borderRadius:8,border:timeframe===m?"1px solid #38bdf8":"1px solid #34445b",background:timeframe===m?"#164e63":"#172235",color:"white",cursor:"pointer"}}>{m}m candles</button>)}<span style={{marginLeft:"auto",color:"#64748b",fontSize:11,alignSelf:"center"}}>{updatedAt?`${refreshing?"Updating… · ":"Updated "}${updatedAt.toLocaleTimeString()}`:""}</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><span style={{color:"#94a3b8",fontSize:11}}>SELECTED MARKET</span><h2 style={{margin:"5px 0"}}>{asset.name} <span style={{color:"#94a3b8",fontSize:14}}>{asset.ticker}/USD</span></h2></div><div style={{textAlign:"right"}}><strong style={{fontSize:27}}>{usd(livePrice ?? data?.current_price)}</strong><div style={{color:Number(data?.change_pct)>=0?"#34d399":"#fb7185",fontSize:13}}>{data?.change_pct==null?"—":`${data.change_pct>0?"+":""}${data.change_pct}% today`}</div></div></div>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap",margin:"14px 0"}}>{[1,5,15,30].map(m=><button key={m} onClick={()=>setTimeframe(m)} style={{padding:"7px 13px",borderRadius:8,border:timeframe===m?"1px solid #38bdf8":"1px solid #34445b",background:timeframe===m?"#164e63":"#172235",color:"white",cursor:"pointer"}}>{m}m candles</button>)}<span style={{marginLeft:"auto",color:"#64748b",fontSize:11,alignSelf:"center"}}>{streamStatus === "live" ? "● LIVE · Binance trades" : streamStatus === "reconnecting" ? "Reconnecting to exchange…" : updatedAt ? `Snapshot · ${updatedAt.toLocaleTimeString()}` : "Connecting to exchange…"}</span></div>
             {loading&&!data?<div style={{padding:60,textAlign:"center"}}>Loading crypto market data…</div>:error&&!data?<div style={{padding:25,color:"#fbbf24"}}>{error}</div>:candles.length?<><Chart type="candlestick" height={340} options={chartOptions} series={chartSeries}/><div style={{color:"#94a3b8",fontSize:10,letterSpacing:".1em"}}>VOLUME</div><Chart type="bar" height={85} options={volumeOptions} series={volumeSeries}/></>:<div style={{padding:30}}>No candles received.</div>}
-            <p style={{color:"#8192a9",fontSize:11,marginBottom:0}}>Auto-refresh: every 20 seconds · candles update when the data provider publishes new market data.</p>
+            <p style={{color:"#8192a9",fontSize:11,marginBottom:0}}>Live quote and active candle update on each Binance trade tick. Historical candles are loaded from Yahoo Finance.</p>
           </div>
         </section>
 
