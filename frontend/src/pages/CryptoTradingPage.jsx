@@ -103,8 +103,6 @@ export default function CryptoTradingPage() {
   };
 
   const horizons = data?.horizons || [];
-  const buySignal = horizons.filter(h => h.signal === "BUY").length;
-  const sellSignal = horizons.filter(h => h.signal === "SELL BIAS").length;
   const strongestSignal = horizons.reduce((best, item) => Math.abs(Number(item.up_probability_pct || 50) - 50) > Math.abs(Number(best?.up_probability_pct || 50) - 50) ? item : best, null);
   const strongestUp = Number(strongestSignal?.up_probability_pct || 50);
   const overall = strongestUp >= 60 ? "UP BIAS" : strongestUp <= 40 ? "DOWN BIAS" : "WAIT — NO CLEAR EDGE";
