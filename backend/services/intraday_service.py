@@ -5,7 +5,7 @@ The 5–30 minute outputs are rule-based technical scores, not calibrated ML for
 """
 from __future__ import annotations
 import time
-from threading import Lock
+from threading import Lock, Thread
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -13,6 +13,7 @@ import yfinance as yf
 _CACHE = {}
 _LOCKS = {}
 _GUARD = Lock()
+_REFRESHING = set()
 _CACHE_TTL = 20
 _HORIZONS = (5, 10, 15, 20, 25, 30)
 
@@ -80,14 +81,58 @@ def _build_payload(symbol):
         "signal_note": "UP/DOWN values are heuristic technical scores, not calibrated probabilities or trained 5–30 minute ML forecasts. SELL BIAS means avoid a new long position; no short order is executed."
     }
 
+def _refresh_symbol(key, lock):
+    try:
+        with lock:
+            data = _build_payload(key)
+            with _GUARD:
+                _CACHE[key] = {"at": time.monotonic(), "data": data}
+    except Exception as exc:
+        print(f"INTRADAY BACKGROUND REFRESH FAILED ({key}):", exc)
+    finally:
+        with _GUARD:
+            _REFRESHING.discard(key)
+
+
 def get_intraday_analysis(symbol):
+    """Return cached analysis immediately; refresh expired data in the background."""
     key = symbol.strip().upper()
-    with _GUARD: lock = _LOCKS.setdefault(key, Lock())
+    with _GUARD:
+        lock = _LOCKS.setdefault(key, Lock())
+        cached = _CACHE.get(key)
+        age = time.monotonic() - cached["at"] if cached else None
+        if cached and age < _CACHE_TTL:
+            payload = dict(cached["data"])
+            payload["data_age_seconds"] = int(age)
+            payload["is_stale"] = False
+            payload["refreshing"] = False
+            return payload
+        if cached:
+            if key not in _REFRESHING:
+                _REFRESHING.add(key)
+                Thread(target=_refresh_symbol, args=(key, lock), daemon=True).start()
+            payload = dict(cached["data"])
+            payload["data_age_seconds"] = int(age)
+            payload["is_stale"] = True
+            payload["refreshing"] = True
+            return payload
+
+    # First-ever request has no cached snapshot, so it must wait for market data.
     with lock:
-        now = time.monotonic()
         with _GUARD:
             cached = _CACHE.get(key)
-            if cached and now - cached["at"] < _CACHE_TTL: return cached["data"]
+            if cached:
+                age = time.monotonic() - cached["at"]
+                payload = dict(cached["data"])
+                payload["data_age_seconds"] = int(age)
+                payload["is_stale"] = age >= _CACHE_TTL
+                payload["refreshing"] = False
+                return payload
         data = _build_payload(key)
-        with _GUARD: _CACHE[key] = {"at": time.monotonic(), "data": data}
-        return data
+        with _GUARD:
+            _CACHE[key] = {"at": time.monotonic(), "data": data}
+        payload = dict(data)
+        payload["data_age_seconds"] = 0
+        payload["is_stale"] = False
+        payload["refreshing"] = False
+        return payload
