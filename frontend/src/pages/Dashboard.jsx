@@ -23,9 +23,7 @@ function Dashboard() {
   // ML prediction
   const [prediction, setPrediction] = useState(null);
   const [dashboardForecast, setDashboardForecast] = useState(null);
-  const [dashboardIntelligence, setDashboardIntelligence] = useState(null);
   const [quickSignalLoading, setQuickSignalLoading] = useState(false);
-  const [advancedSignalLoading, setAdvancedSignalLoading] = useState(false);
 
   // Current live stock price and market quote
   const [livePrice, setLivePrice] = useState(null);
@@ -203,7 +201,6 @@ function Dashboard() {
     const requestId = ++quickSignalRequestSequence.current;
     setQuickSignalLoading(true);
     setDashboardForecast(null);
-    setDashboardIntelligence(null);
 
     API.get(`/predict/${symbol}`, { timeout: 45000 })
       .then((response) => {
