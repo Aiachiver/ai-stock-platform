@@ -16,7 +16,14 @@ _CRYPTO_PAIRS = {
     "BTC-USD": "BTCUSDT", "ETH-USD": "ETHUSDT", "SOL-USD": "SOLUSDT",
     "XRP-USD": "XRPUSDT", "DOGE-USD": "DOGEUSDT", "BNB-USD": "BNBUSDT",
 }
-_BINANCE_API = "https://api.binance.com/api/v3/klines"
+# Public mirrors improve availability when one Binance edge is blocked.
+_BINANCE_APIS = (
+    "https://data-api.binance.vision/api/v3/klines",
+    "https://api.binance.com/api/v3/klines",
+    "https://api1.binance.com/api/v3/klines",
+    "https://api2.binance.com/api/v3/klines",
+    "https://api3.binance.com/api/v3/klines",
+)
 _CACHE = {}
 _LOCKS = {}
 _GUARD = Lock()
@@ -27,45 +34,55 @@ _HORIZONS = (5, 10, 15, 20, 25, 30)
 
 def _get_crypto_frame(symbol):
     pair = _CRYPTO_PAIRS[symbol]
+    params = {"symbol": pair, "interval": "1m", "limit": 240}
+    errors = []
+
+    for endpoint in _BINANCE_APIS:
+        try:
+            response = requests.get(
+                endpoint, params=params, timeout=(4, 8),
+                headers={"User-Agent": "TradeSightAI/1.0", "Accept": "application/json"}
+            )
+            response.raise_for_status()
+            rows = response.json()
+            if not isinstance(rows, list) or not rows:
+                raise ValueError("Binance returned no crypto candles")
+            columns = ["open_time", "Open", "High", "Low", "Close", "Volume",
+                       "close_time", "quote_volume", "trades", "taker_base",
+                       "taker_quote", "ignored"]
+            frame = pd.DataFrame(rows, columns=columns)
+            frame.index = pd.to_datetime(frame.pop("open_time").astype("int64"), unit="ms", utc=True)
+            for col in ("Open", "High", "Low", "Close", "Volume"):
+                frame[col] = pd.to_numeric(frame[col], errors="coerce")
+            frame = frame[["Open", "High", "Low", "Close", "Volume"]].dropna()
+            frame = frame[(frame[["Open", "High", "Low", "Close"]] > 0).all(axis=1)]
+            if len(frame) < 10:
+                raise ValueError("Insufficient Binance crypto candles")
+            frame.attrs["provider"] = "Binance Spot"
+            return frame
+        except Exception as exc:
+            errors.append(f"{endpoint.split('/')[2]}: {exc}")
+
+    print(f"BINANCE CANDLE MIRRORS UNAVAILABLE ({symbol}):", " | ".join(errors))
     try:
-        response = requests.get(
-            _BINANCE_API, params={"symbol": pair, "interval": "1m", "limit": 240},
-            timeout=12
-        )
-        response.raise_for_status()
-        rows = response.json()
-        if not rows:
-            raise ValueError("Binance returned no crypto candles")
-        columns = ["open_time", "Open", "High", "Low", "Close", "Volume",
-                   "close_time", "quote_volume", "trades", "taker_base",
-                   "taker_quote", "ignored"]
-        frame = pd.DataFrame(rows, columns=columns)
-        frame.index = pd.to_datetime(frame.pop("open_time").astype("int64"), unit="ms", utc=True)
-        for col in ("Open", "High", "Low", "Close", "Volume"):
-            frame[col] = pd.to_numeric(frame[col], errors="coerce")
-        frame = frame[["Open", "High", "Low", "Close", "Volume"]].dropna()
-        if len(frame) < 10:
-            raise ValueError("Insufficient Binance crypto candles")
-        frame.attrs["provider"] = "Binance Spot"
-        return frame
-    except Exception as binance_error:
-        print(f"BINANCE CANDLES UNAVAILABLE ({symbol}); trying Yahoo Finance:", binance_error)
         frame = yf.Ticker(symbol).history(period="1d", interval="1m", auto_adjust=False)
-        if frame is None or frame.empty:
-            raise ValueError("No crypto candles available from Binance or Yahoo Finance")
-        if isinstance(frame.columns, pd.MultiIndex):
-            frame.columns = frame.columns.get_level_values(0)
-        required = ["Open", "High", "Low", "Close", "Volume"]
-        frame = frame[required].copy()
-        for col in required:
-            frame[col] = pd.to_numeric(frame[col], errors="coerce")
-        frame = frame.dropna(subset=["Open", "High", "Low", "Close"])
-        frame = frame[~frame.index.duplicated(keep="last")].sort_index()
-        frame = frame[(frame[["Open", "High", "Low", "Close"]] > 0).all(axis=1)]
-        if len(frame) < 10:
-            raise ValueError("Insufficient Yahoo Finance crypto candles")
-        frame.attrs["provider"] = "Yahoo Finance fallback"
-        return frame
+        if frame is not None and not frame.empty:
+            if isinstance(frame.columns, pd.MultiIndex):
+                frame.columns = frame.columns.get_level_values(0)
+            required = ["Open", "High", "Low", "Close", "Volume"]
+            frame = frame[required].copy()
+            for col in required:
+                frame[col] = pd.to_numeric(frame[col], errors="coerce")
+            frame = frame.dropna(subset=["Open", "High", "Low", "Close"])
+            frame = frame[~frame.index.duplicated(keep="last")].sort_index()
+            frame = frame[(frame[["Open", "High", "Low", "Close"]] > 0).all(axis=1)]
+            if len(frame) >= 10:
+                frame.attrs["provider"] = "Yahoo Finance fallback"
+                return frame
+    except Exception as exc:
+        print(f"YAHOO CRYPTO FALLBACK FAILED ({symbol}):", exc)
+
+    raise ValueError(f"No intraday candles available for {symbol}; Binance mirrors and Yahoo Finance fallback failed")
 
 
 def _get_frame(symbol):
