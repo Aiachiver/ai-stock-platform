@@ -23,6 +23,7 @@ function Dashboard() {
   const [dashboardForecast, setDashboardForecast] = useState(null);
   const [dashboardIntelligence, setDashboardIntelligence] = useState(null);
   const [quickSignalLoading, setQuickSignalLoading] = useState(false);
+  const [advancedSignalLoading, setAdvancedSignalLoading] = useState(false);
 
   // Current live stock price and market quote
   const [livePrice, setLivePrice] = useState(null);
@@ -193,22 +194,42 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeView, symbol]);
 
-  // Keep the key forecast and trade decision visible on the main dashboard.
+  // Show the faster forecast as soon as it arrives. The heavier calibrated
+  // intelligence check runs independently and upgrades the signal when ready.
   useEffect(() => {
     if (activeView !== "dashboard") return;
     const requestId = ++quickSignalRequestSequence.current;
     setQuickSignalLoading(true);
+    setAdvancedSignalLoading(true);
     setDashboardForecast(null);
     setDashboardIntelligence(null);
-    Promise.allSettled([
-      API.get(`/predict/${symbol}`, { timeout: 90000 }),
-      API.get(`/intelligence/${symbol}`, { timeout: 120000 })
-    ]).then((results) => {
-      if (requestId !== quickSignalRequestSequence.current) return;
-      setDashboardForecast(results[0].status === "fulfilled" ? results[0].value.data : { error: "Forecast temporarily unavailable." });
-      setDashboardIntelligence(results[1].status === "fulfilled" ? results[1].value.data : { error: "Trade decision temporarily unavailable." });
-      setQuickSignalLoading(false);
-    });
+
+    API.get(`/predict/${symbol}`, { timeout: 90000 })
+      .then((response) => {
+        if (requestId === quickSignalRequestSequence.current) setDashboardForecast(response.data || {});
+      })
+      .catch(() => {
+        if (requestId === quickSignalRequestSequence.current) {
+          setDashboardForecast({ error: "Quick forecast temporarily unavailable." });
+        }
+      })
+      .finally(() => {
+        if (requestId === quickSignalRequestSequence.current) setQuickSignalLoading(false);
+      });
+
+    API.get(`/intelligence/${symbol}`, { timeout: 120000 })
+      .then((response) => {
+        if (requestId === quickSignalRequestSequence.current) setDashboardIntelligence(response.data || {});
+      })
+      .catch(() => {
+        if (requestId === quickSignalRequestSequence.current) {
+          setDashboardIntelligence({ error: "Advanced validation is temporarily unavailable." });
+        }
+      })
+      .finally(() => {
+        if (requestId === quickSignalRequestSequence.current) setAdvancedSignalLoading(false);
+      });
+
     return () => { quickSignalRequestSequence.current += 1; };
   }, [activeView, symbol]);
 
@@ -508,55 +529,96 @@ function Dashboard() {
 
       <StockOverview quote={quote} livePrice={livePrice} />
 
-      {/* QUICK AI DECISION: visible without opening Model Details */}
-      <section style={{
-        background: "#172554", border: "1px solid #334155", borderRadius: 14,
-        padding: 20, margin: "0 0 24px", boxShadow: "0 8px 20px rgba(0,0,0,.15)"
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <span style={{ color: "#93c5fd", fontSize: 11, fontWeight: 800, letterSpacing: ".1em" }}>AI TRADE ASSISTANT · {symbol}</span>
-            <h2 style={{ margin: "6px 0 0" }}>What should I do?</h2>
-          </div>
-          {(() => {
-            const decision = dashboardIntelligence?.prediction?.decision || "NO TRADE";
-            const color = decision.includes("BUY") ? "#4ade80" : decision.includes("BEARISH") ? "#fbbf24" : "#cbd5e1";
-            return <strong style={{ color, border: `1px solid ${color}`, borderRadius: 999, padding: "10px 16px", fontSize: 15 }}>{quickSignalLoading ? "ANALYZING…" : decision}</strong>;
-          })()}
-        </div>
-        {quickSignalLoading ? (
-          <p style={{ color: "#cbd5e1", marginBottom: 0 }}>Loading the next-session forecast and confidence check…</p>
-        ) : dashboardForecast?.error || dashboardIntelligence?.error ? (
-          <p style={{ color: "#cbd5e1", marginBottom: 0 }}>AI decision is temporarily unavailable. Open Model Details or refresh to try again.</p>
-        ) : (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 12, marginTop: 18 }}>
+      {/* QUICK AI DECISION: fast forecast first, advanced validation in background */}
+      {(() => {
+        const validated = dashboardIntelligence?.prediction;
+        const fastSignal = String(dashboardForecast?.signal || "").toUpperCase();
+        const finalDecision = validated?.decision;
+        const displayDecision = finalDecision
+          ? (finalDecision.includes("BUY") ? "BUY" : finalDecision.includes("BEARISH") ? "SELL BIAS · AVOID" : "NO TRADE")
+          : fastSignal === "BUY" ? "BUY · EARLY SIGNAL"
+          : fastSignal === "SELL" ? "SELL · EARLY SIGNAL"
+          : fastSignal === "HOLD" ? "NO TRADE · WAIT"
+          : "WAITING FOR SIGNAL";
+        const decisionColor = displayDecision.startsWith("BUY") ? "#4ade80"
+          : displayDecision.startsWith("SELL") ? "#f87171" : "#fbbf24";
+        const hasFastForecast = dashboardForecast && !dashboardForecast.error && dashboardForecast.signal !== "NO DATA";
+        const hasAdvancedDecision = Boolean(finalDecision);
+        const confidence = validated?.confidence_pct;
+        const threshold = validated?.threshold_pct ?? 60;
+        const move = dashboardForecast?.predicted_return_pct;
+        const explain = hasAdvancedDecision
+          ? finalDecision === "NO TRADE"
+            ? `Confidence is ${confidence ?? "below"}% and the required threshold is ${threshold}%. The model is not confident enough, so waiting is the safer model output.`
+            : finalDecision.includes("BUY")
+              ? `The calibrated UP probability crossed the ${threshold}% threshold. This is a research signal, not a guarantee.`
+              : `The calibrated DOWN probability crossed the ${threshold}% threshold. The model advises avoiding a new long position; this is not an automatic short-sale instruction.`
+          : hasFastForecast
+            ? `The quick model estimates a ${move == null ? "directional" : `${Number(move) > 0 ? "+" : ""}${Number(move).toFixed(3)}%`} move for the next trading session. The calibrated validation check is still running.`
+            : "The forecast is being prepared. No trade signal is issued until model output is available.";
+        return (
+          <section style={{
+            background: "linear-gradient(135deg, #172554 0%, #14213d 60%, #0f172a 100%)",
+            border: "1px solid #36558a", borderRadius: 16, padding: 22, margin: "0 0 24px",
+            boxShadow: "0 12px 30px rgba(0,0,0,.22)"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14 }}>
+              <div>
+                <span style={{ color: "#93c5fd", fontSize: 11, fontWeight: 800, letterSpacing: ".12em" }}>TRADESIGHT AI · LIVE RESEARCH SIGNAL</span>
+                <h2 style={{ margin: "7px 0 4px", fontSize: 23 }}>What should I do with {symbol}?</h2>
+                <p style={{ color: "#cbd5e1", margin: 0, fontSize: 13 }}>Next trading session · Paper-trading research only</p>
+              </div>
+              <div style={{ minWidth: 170, textAlign: "center", background: "#0b1224", border: `1px solid ${decisionColor}`, borderRadius: 13, padding: "13px 18px" }}>
+                <div style={{ color: "#94a3b8", fontSize: 10, letterSpacing: ".1em", fontWeight: 800 }}>CURRENT SIGNAL</div>
+                <strong style={{ display: "block", color: decisionColor, fontSize: 19, marginTop: 5 }}>{displayDecision}</strong>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 11, marginTop: 20 }}>
               {[
-                ["Current price", dashboardForecast?.current_price],
-                ["Estimated next price", dashboardForecast?.predicted_price],
-                ["Expected move", dashboardForecast?.predicted_return_pct == null ? null : `${Number(dashboardForecast.predicted_return_pct) > 0 ? "+" : ""}${Number(dashboardForecast.predicted_return_pct).toFixed(3)}%`],
-                ["Up probability", dashboardIntelligence?.prediction?.up_probability_pct == null ? null : `${dashboardIntelligence.prediction.up_probability_pct}%`],
-                ["Down probability", dashboardIntelligence?.prediction?.down_probability_pct == null ? null : `${dashboardIntelligence.prediction.down_probability_pct}%`],
-                ["Confidence / threshold", dashboardIntelligence?.prediction?.confidence_pct == null ? null : `${dashboardIntelligence.prediction.confidence_pct}% / ${dashboardIntelligence.prediction.threshold_pct ?? 60}%`]
-              ].map(([label, value]) => (
-                <div key={label} style={{ background: "#0f172a", borderRadius: 10, padding: 13 }}>
-                  <div style={{ color: "#94a3b8", fontSize: 12 }}>{label}</div>
-                  <strong style={{ display: "block", marginTop: 7, fontSize: 17 }}>{value == null ? "—" : typeof value === "number" && label.toLowerCase().includes("price") ? `${value.toFixed(2)}` : value}</strong>
+                ["Current price", dashboardForecast?.current_price, true],
+                ["Estimated next price", dashboardForecast?.predicted_price, true],
+                ["Expected move", move == null ? null : `${Number(move) > 0 ? "+" : ""}${Number(move).toFixed(3)}%`, false],
+                ["Up probability", validated?.up_probability_pct == null ? null : `${validated.up_probability_pct}%`, false],
+                ["Down probability", validated?.down_probability_pct == null ? null : `${validated.down_probability_pct}%`, false],
+                ["Confidence / threshold", confidence == null ? null : `${confidence}% / ${threshold}%`, false]
+              ].map(([label, value, isPrice]) => (
+                <div key={label} style={{ background: "#0b1224", border: "1px solid #263653", borderRadius: 11, padding: 13 }}>
+                  <div style={{ color: "#94a3b8", fontSize: 11 }}>{label}</div>
+                  <strong style={{ display: "block", marginTop: 7, fontSize: 17 }}>
+                    {value == null ? "—" : isPrice ? `$${Number(value).toFixed(2)}` : value}
+                  </strong>
                 </div>
               ))}
             </div>
-            <p style={{ color: "#cbd5e1", lineHeight: 1.6, margin: "16px 0 0" }}>
-              {dashboardIntelligence?.prediction?.decision === "NO TRADE"
-                ? "The model's confidence has not crossed its required threshold. Wait; do not treat a small positive or negative forecast as a trade instruction."
-                : dashboardIntelligence?.prediction?.decision || dashboardForecast?.signal || "No actionable signal"}
-              {" "}This is an experimental next-session estimate, not a guaranteed outcome or financial advice.
+
+            <div style={{ marginTop: 16, padding: 15, borderRadius: 11, background: "#0b1224", borderLeft: `3px solid ${decisionColor}` }}>
+              <strong style={{ color: "#e2e8f0", fontSize: 13 }}>Why this signal?</strong>
+              <p style={{ color: "#cbd5e1", lineHeight: 1.6, margin: "6px 0 0", fontSize: 13 }}>{explain}</p>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 15 }}>
+              <div style={{ color: "#a5b4fc", fontSize: 12 }} aria-live="polite">
+                {quickSignalLoading
+                  ? "① Preparing quick forecast…"
+                  : !hasFastForecast
+                    ? "Quick forecast unavailable"
+                    : advancedSignalLoading
+                      ? "✓ Quick forecast ready · ② Running calibrated validation in background…"
+                      : hasAdvancedDecision
+                        ? "✓ Forecast and calibrated validation complete"
+                        : "Quick forecast ready · Advanced validation unavailable"}
+              </div>
+              <button type="button" onClick={() => setActiveView("models")} style={{ background: "#2563eb", color: "white", border: 0, borderRadius: 9, padding: "10px 15px", cursor: "pointer", fontWeight: 700 }}>
+                Explore full analysis →
+              </button>
+            </div>
+            <p style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.5, margin: "13px 0 0" }}>
+              Signals are experimental estimates, not guaranteed outcomes or financial advice. SELL BIAS means avoid a new long position; the platform does not execute short sales automatically.
             </p>
-          </>
-        )}
-        <button type="button" onClick={() => { setActiveView("models"); }} style={{ marginTop: 14, background: "#2563eb", color: "white", border: 0, borderRadius: 8, padding: "10px 14px", cursor: "pointer", fontWeight: 700 }}>
-          View full model analysis →
-        </button>
-      </section>
+          </section>
+        );
+      })()}
 
       {/* PORTFOLIO SUMMARY */}
       {details && (
