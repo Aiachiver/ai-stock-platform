@@ -4,15 +4,21 @@ from __future__ import annotations
 import time
 from threading import Lock
 
+import requests
+
 from services.quote_service import get_stock_quote
 
-_CACHE_TTL_SECONDS = 10
+_CRYPTO_PAIRS = {
+    "BTC-USD": "BTCUSDT", "ETH-USD": "ETHUSDT", "SOL-USD": "SOLUSDT",
+    "XRP-USD": "XRPUSDT", "DOGE-USD": "DOGEUSDT", "BNB-USD": "BNBUSDT",
+}
+_CACHE_TTL_SECONDS = 5
 _cache = {}
 _cache_lock = Lock()
 
 
 def get_price(symbol: str):
-    """Use the same Yahoo Finance quote snapshot shown in the dashboard."""
+    """Use Binance for supported crypto pairs and Yahoo Finance for equities."""
     key = symbol.strip().upper()
     now = time.monotonic()
     with _cache_lock:
@@ -21,12 +27,18 @@ def get_price(symbol: str):
             return cached[1]
 
     try:
-        quote = get_stock_quote(key)
-        price = quote.get("price") if isinstance(quote, dict) else None
-        if price is None:
-            return None
-        price = float(price)
-        if price <= 0:
+        if key in _CRYPTO_PAIRS:
+            response = requests.get(
+                "https://api.binance.com/api/v3/ticker/price",
+                params={"symbol": _CRYPTO_PAIRS[key]},
+                timeout=8,
+            )
+            response.raise_for_status()
+            price = float(response.json()["price"])
+        else:
+            quote = get_stock_quote(key)
+            price = float(quote["price"]) if isinstance(quote, dict) and quote.get("price") is not None else None
+        if price is None or price <= 0:
             return None
         with _cache_lock:
             _cache[key] = (time.monotonic(), price)
