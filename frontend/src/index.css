@@ -157,3 +157,26 @@ td { color: #514956 !important; }
 @media(prefers-reduced-motion:reduce) {
   *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+/* Palette cleanup: legacy inline accents across dashboard, stock and crypto */
+:root { --ts-plum:#76536f; --ts-plum-deep:#5c4058; --ts-copper:#b47b55; }
+.dashboard-shell [style*="#22c55e"], .dashboard-shell [style*="#4ade80"],
+.dashboard-shell [style*="#16a34a"], .dashboard-shell [style*="#166534"],
+.dashboard-shell [style*="#087f5b"], .dashboard-shell [style*="#68b58a"],
+.crypto-terminal [style*="#22c55e"], .crypto-terminal [style*="#4ade80"],
+.crypto-terminal [style*="#16a34a"], .crypto-terminal [style*="#68b58a"],
+.app-shell [style*="#22c55e"], .app-shell [style*="#4ade80"] {
+  color:var(--ts-plum)!important; border-color:#e4d5e2!important;
+}
+.dashboard-shell [style*="#14213d"], .dashboard-shell [style*="#36558a"],
+.dashboard-shell [style*="#263653"], .dashboard-shell [style*="#0b1224"],
+.crypto-terminal [style*="#17304a"], .crypto-terminal [style*="#111c2e"],
+.crypto-terminal [style*="#34445b"], .crypto-terminal [style*="#1e293b"] {
+  background:var(--plum-soft)!important; color:var(--ink)!important; border-color:var(--line)!important;
+}
+.dashboard-shell [style*="#22c55e"], .dashboard-shell [style*="#4ade80"],
+.dashboard-shell [style*="#16a34a"], .dashboard-shell [style*="#166534"],
+.crypto-terminal [style*="#68b58a"], .crypto-terminal [style*="#287653"] {
+  background:var(--plum-soft)!important;
+}
