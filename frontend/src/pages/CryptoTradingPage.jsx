@@ -19,7 +19,6 @@ export default function CryptoTradingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [livePrice, setLivePrice] = useState(null);
   const [streamStatus, setStreamStatus] = useState("connecting");
   const previousLivePrice = useRef(null);
@@ -32,7 +31,6 @@ export default function CryptoTradingPage() {
     let active = true;
     const load = async (quiet = false) => {
       if (!quiet && active) setLoading(true);
-      if (quiet && active) setRefreshing(true);
       try {
         const response = await API.get(`/intraday/${asset.symbol}`, { timeout: 15000 });
         if (!active) return;
@@ -43,7 +41,6 @@ export default function CryptoTradingPage() {
         if (active) setError("Crypto candles are temporarily unavailable. The data provider may be delayed or rate-limited.");
       } finally {
         if (active && !quiet) setLoading(false);
-        if (active && quiet) setRefreshing(false);
       }
     };
     setData(null);
